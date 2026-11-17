@@ -317,7 +317,9 @@
   // Fill business details (name, phone, WhatsApp, address, GST) from admin settings.
   function showBusiness(info) {
     document.title = info.siteName;
-    $('siteName').textContent = info.siteName;
+    const parts = String(info.siteName || '').trim().split(/\s+/);
+    $('siteName').textContent = parts[0] || '';
+    $('siteSub').textContent = parts.slice(1).join(' ') || 'Stock portal';
     document.querySelectorAll('.js-site').forEach((el) => { el.textContent = info.siteName; });
     $('year').textContent = new Date().getFullYear();
     if (info.contactPhone) {
