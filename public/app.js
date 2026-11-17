@@ -38,13 +38,14 @@
     if (!STATIC) return (settings = await api('/api/info'));
     await detectPhp();
     if (PHP) $('reqSend').textContent = 'Send request';
-    settings = await getJSON(SETTINGS_URL);
-    staticStock = await getJSON(STOCK_URL);
+    settings = demoGet('demo_settings') || await getJSON(SETTINGS_URL);
+    staticStock = await loadStockSrc();
+    if (isDemo()) showDemoBar();
     return { ...settings, authorized: true, version: staticStock.version };
   }
   async function getProducts() {
     if (!STATIC) return api('/api/products');
-    const st = staticStock || await getJSON(STOCK_URL);
+    const st = staticStock || await loadStockSrc();
     staticStock = null;
     const f = st.fields, iStock = f.indexOf('stock'), low = settings.lowStockLimit ?? 5;
     let rows = st.items;
@@ -54,6 +55,16 @@
       rows = rows.map((r) => { const v = r[iStock]; const c = r.slice(); c[iStock] = v <= 0 ? 0 : v <= low ? 1 : 2; c.push(v); return c; });
     } else rows = rows.map((r) => r.concat([r[iStock]]));
     return { version: st.version, asOf: st.asOf, updatedAt: st.updatedAt, stockDisplay: settings.stockDisplay || 'qty', fields: f.concat(['raw']), items: rows };
+  }
+  // Demo mode (set from the admin page on GitHub Pages): show the demo stock saved in this browser.
+  const isDemo = () => { try { return !PHP && localStorage.getItem('demo_mode') === '1'; } catch { return false; } };
+  const demoGet = (k) => { if (!isDemo()) return null; try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+  async function loadStockSrc() { return demoGet('demo_stock') || getJSON(STOCK_URL); }
+  function showDemoBar() {
+    const bar = document.createElement('div');
+    bar.textContent = 'DEMO MODE: showing demo stock saved in this browser only';
+    bar.style.cssText = 'background:#16a05d;color:#fff;text-align:center;font-size:13px;font-weight:500;padding:6px 10px';
+    document.body.prepend(bar);
   }
   function waLink(text) {
     const digits = String(settings.contactPhone || '').replace(/\D/g, '');
@@ -240,8 +251,8 @@
     if (document.hidden) return;
     try {
       if (STATIC) {
-        const st = await getJSON(STOCK_URL);
-        if (st.version !== version) { settings = await getJSON(SETTINGS_URL); staticStock = st; await loadProducts(true); }
+        const st = await loadStockSrc();
+        if (st.version !== version) { settings = demoGet('demo_settings') || await getJSON(SETTINGS_URL); staticStock = st; await loadProducts(true); }
         return;
       }
       const info = await api('/api/info');

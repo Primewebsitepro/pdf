@@ -76,12 +76,13 @@
     <!-- GitHub Pages: GitHub token login -->
     <form class="center-card hidden" id="authForm" style="max-width:520px">
       <h2>Admin login</h2>
-      <p class="muted">This website is hosted on GitHub. To upload stock, log in with a <b>GitHub access token</b> for the repository <b id="repoName"></b>. The token is saved only in this browser.</p>
       <div id="authMsg"></div>
-      <div class="field"><input id="token" type="password" placeholder="github_pat_…" autocomplete="off" required></div>
+      <div class="field"><input id="ghPw" type="password" placeholder="Password" autocomplete="current-password"></div>
       <button class="btn accent" style="width:100%">Login</button>
       <details style="margin-top:14px">
-        <summary class="muted" style="cursor:pointer">How to get a token (one time, 2 minutes)</summary>
+        <summary class="muted" style="cursor:pointer">Owner: first-time setup with a GitHub token</summary>
+        <p class="muted" style="margin:8px 0">Paste a <b>GitHub access token</b> for <b id="repoName"></b> and press Login. Then open <b>Settings → Admin password</b> to set the password used above.</p>
+        <div class="field"><input id="token" type="password" placeholder="github_pat_…" autocomplete="off"></div>
         <ol class="steps">
           <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a></li>
           <li>Token name: <b>stock-admin</b>, Expiration: <b>1 year</b></li>
@@ -105,6 +106,7 @@
     <main class="wrap">
       <section id="tab-dash">
         <h2>Dashboard</h2>
+        <div id="demoBar" class="msg ok hidden">DEMO MODE: try every feature freely. Changes are saved only in this browser, and the website opened in this browser shows them. The real website is not changed. Logging out clears the demo.</div>
         <div id="liveMsg"></div>
         <div class="stats" id="stats"></div>
         <div class="card" style="margin-top:12px" id="lastUpload"></div>
@@ -164,6 +166,16 @@
               <select id="sOut"><option value="1">Show them (marked Out of stock)</option><option value="0">Hide them</option></select></div>
           </div>
           <div class="actions"><button class="btn accent">Save settings</button></div>
+        </form>
+        <form class="card hidden" id="ghPwForm">
+          <h3 style="margin-top:0">Admin password</h3>
+          <p class="muted" style="margin-top:0">Set the password used to log in to this admin page (instead of the GitHub token). Share it only with people who should upload stock.</p>
+          <div id="ghPwMsg"></div>
+          <div class="grid2">
+            <div class="field"><label for="ghNew">New password (min 8)</label><input id="ghNew" type="password" autocomplete="new-password"></div>
+            <div class="field"><label for="ghNew2">Confirm password</label><input id="ghNew2" type="password" autocomplete="new-password"></div>
+          </div>
+          <div class="actions"><button class="btn accent">Save admin password</button></div>
         </form>
         <form class="card hidden" id="pwForm">
           <h3 style="margin-top:0">Change admin password</h3>

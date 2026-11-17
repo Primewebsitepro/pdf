@@ -27,6 +27,36 @@
   let branch = 'main';
   let PHP = false, phpInfo = null;
 
+  // ---------- demo mode (GitHub Pages) ----------
+  // Lets a client try every admin feature without any GitHub access. Changes are kept only in
+  // this browser (localStorage) and the website in the same browser shows the demo stock.
+  const DEMO_PASSWORD = 'demo1234';
+  let DEMO = ls.get('demo_mode') === '1';
+  const dget = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+  const dset = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch { throw new Error('Browser storage is full or blocked.'); } };
+  const fetchSite = (p) => fetch(p + '?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+  // ---------- admin password (GitHub Pages) ----------
+  // The GitHub token is encrypted with the admin password (PBKDF2 + AES-GCM) and stored in the
+  // repository as stock/admin-key.json. Logging in with the password decrypts the token.
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const toB64 = (u8) => btoa(String.fromCharCode.apply(null, u8));
+  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function deriveKey(password, salt, iter) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function encryptToken(tok, password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), iter = 310000;
+    const key = await deriveKey(password, salt, iter);
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(tok)));
+    return { v: 1, iter, salt: toB64(salt), iv: toB64(iv), data: toB64(data) };
+  }
+  async function decryptToken(obj, password) {
+    const key = await deriveKey(password, fromB64(obj.salt), obj.iter);
+    return dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(obj.iv) }, key, fromB64(obj.data)));
+  }
+
   // ---------- PHP backend ----------
   async function php(action, body, query) {
     const res = await fetch('api.php?action=' + action + (query || ''), {
@@ -79,6 +109,14 @@
   let stock = { file: null, sha: null, items: [] }, settings = { file: null, sha: null }, pindex = [], pShown = 100;
 
   async function loadAll() {
+    if (DEMO) {
+      const sj = dget('demo_stock') || await fetchSite('stock/stock.json');
+      const stj = dget('demo_settings') || await fetchSite('stock/settings.json') || {};
+      stock = { file: sj, sha: null, items: sj && sj.items ? StockImporter.fromStockFile(sj) : [] };
+      settings = { file: stj, sha: null };
+      pindex = StockSearch.buildIndex(stock.items);
+      return;
+    }
     if (PHP) {
       const [sj, stj] = await Promise.all([php('stock'), php('settings')]);
       stock = { file: sj.version ? sj : null, sha: null, items: sj.items && sj.items.length ? StockImporter.fromStockFile(sj) : [] };
@@ -94,19 +132,36 @@
 
   // ---------- storage operations (PHP or GitHub) ----------
   async function saveStock(fileObj, message) {
+    if (DEMO) {
+      if (stock.file) dset('demo_prev', stock.file);
+      fileObj.updatedAt = new Date().toISOString();
+      dset('demo_stock', fileObj);
+      dset('demo_history', [{ at: fileObj.updatedAt, message }].concat(dget('demo_history') || []).slice(0, 20));
+      return { version: fileObj.version };
+    }
     if (PHP) return php('save_stock', fileObj, '&message=' + encodeURIComponent(message));
     return putFile('stock/stock.json', fileObj, message, stock.sha);
   }
   async function saveSettings(next) {
+    if (DEMO) return dset('demo_settings', next);
     if (PHP) return php('save_settings', next);
     return putFile('stock/settings.json', next, 'Update website settings', settings.sha);
   }
   async function loadHistory() {
+    if (DEMO) return dget('demo_history') || [];
     if (PHP) { const h = await php('history'); return h.items.map((x) => ({ at: x.at, message: x.message })); }
     const commits = await gh('/commits?path=stock/stock.json&per_page=15&sha=' + branch);
     return commits.map((c) => ({ at: c.commit.author.date, message: c.commit.message.split('\n')[0] }));
   }
   async function undoLast() {
+    if (DEMO) {
+      const prev = dget('demo_prev');
+      if (!prev) throw new Error('There is no earlier stock to restore.');
+      prev.version = (stock.file ? stock.file.version : 0) + 1;
+      dset('demo_stock', prev); dset('demo_prev', null);
+      dset('demo_history', [{ at: new Date().toISOString(), message: 'Restored previous stock' }].concat(dget('demo_history') || []));
+      return { version: prev.version };
+    }
     if (PHP) return php('undo', {});
     const commits = await gh('/commits?path=stock/stock.json&per_page=2&sha=' + branch);
     if (commits.length < 2) throw new Error('There is no earlier stock to restore.');
@@ -119,6 +174,7 @@
   // ---------- auth ----------
   async function logout() {
     if (PHP) { await php('logout', {}).catch(() => {}); phpInfo.loggedIn = false; }
+    if (DEMO) { ['demo_stock', 'demo_settings', 'demo_prev', 'demo_history'].forEach((k) => dset(k, null)); DEMO = false; ls.set('demo_mode', ''); }
     token = ''; ls.set('gh_token', ''); showAuth();
   }
   function showAuth() {
@@ -148,11 +204,22 @@
   });
   $('authForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    token = $('token').value.trim();
+    const password = $('ghPw').value;
+    if (!$('token').value.trim()) {
+      if (!password) return msg('authMsg', 'Please enter the password');
+      if (password === DEMO_PASSWORD) {
+        DEMO = true; ls.set('demo_mode', '1'); $('ghPw').value = ''; msg('authMsg', '');
+        return start();
+      }
+      msg('authMsg', 'Checking…', true);
+      const keyFile = await fetchSite('stock/admin-key.json');
+      if (!keyFile) return msg('authMsg', 'Admin password is not set yet. The owner must log in once with a GitHub token (below) and set a password in Settings.');
+      try { token = await decryptToken(keyFile, password); } catch { token = ''; return msg('authMsg', 'Wrong password'); }
+    } else token = $('token').value.trim();
     try {
       const repo = await gh('');
       if (!repo.permissions || !repo.permissions.push) throw new Error('This token cannot write to ' + OWNER + '/' + REPO + '. Give it "Contents: Read and write".');
-      ls.set('gh_token', token); $('token').value = ''; msg('authMsg', '');
+      ls.set('gh_token', token); $('token').value = ''; $('ghPw').value = ''; msg('authMsg', '');
       start();
     } catch (err) { token = ''; msg('authMsg', err.message); }
   });
@@ -201,6 +268,7 @@
   // Wait until GitHub Pages serves the new version, then say so.
   async function watchLive(version) {
     const box = $('liveMsg');
+    if (DEMO) { box.innerHTML = '<div class="msg ok">✔ Saved in demo mode. Open "View website" in this browser to see it.</div>'; toast('Saved (demo)'); return; }
     if (PHP) { box.innerHTML = '<div class="msg ok">✔ Saved. The website is now showing the new stock.</div>'; toast('Website updated'); return; }
     box.innerHTML = '<div class="msg ok">Saved. The website is updating… (about 1 minute)</div>';
     for (let i = 0; i < 30; i++) {
@@ -309,7 +377,7 @@
     };
     try {
       await saveSettings(next);
-      await loadAll(); msg('setMsg', PHP ? 'Settings saved.' : 'Saved. The website will update in about 1 minute.', true);
+      await loadAll(); msg('setMsg', PHP || DEMO ? 'Settings saved.' : 'Saved. The website will update in about 1 minute.', true);
     } catch (err) { msg('setMsg', err.message); }
   });
 
@@ -357,6 +425,20 @@
     const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
     const a = document.createElement('a'); a.href = url; a.download = 'requests.csv'; document.body.appendChild(a); a.click(); a.remove();
   });
+  // GitHub Pages: set / change the admin password (encrypts the current GitHub token).
+  $('ghPwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const p1 = $('ghNew').value, p2 = $('ghNew2').value;
+    if (p1.length < 8) return msg('ghPwMsg', 'Password must be at least 8 characters');
+    if (p1 !== p2) return msg('ghPwMsg', 'Passwords do not match');
+    if (p1 === DEMO_PASSWORD) return msg('ghPwMsg', 'Choose a different password');
+    try {
+      const cur = await getFile('stock/admin-key.json');
+      await putFile('stock/admin-key.json', await encryptToken(token, p1), 'Update admin password', cur.sha);
+      $('ghNew').value = $('ghNew2').value = '';
+      msg('ghPwMsg', 'Admin password saved. From now on log in with this password (works after about 1 minute).', true);
+    } catch (err) { msg('ghPwMsg', err.message); }
+  });
   $('pwForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -371,9 +453,13 @@
     $('panel').classList.remove('hidden'); $('logout').classList.remove('hidden');
     $('topSub').textContent = 'Loading…';
     $('reqTabBtn').classList.toggle('hidden', !PHP); $('pwForm').classList.toggle('hidden', !PHP);
+    $('ghPwForm').classList.toggle('hidden', PHP || DEMO);
+    $('demoBar').classList.toggle('hidden', !DEMO);
     if (PHP) $('waNote').classList.add('hidden');
     try {
-      if (PHP) {
+      if (DEMO) {
+        await loadAll();
+      } else if (PHP) {
         await loadAll();
         php('requests').then((d) => setCount(d.items.filter((r) => r.status === 'new').length)).catch(() => {});
       } else {
@@ -381,12 +467,12 @@
         branch = repo.default_branch || 'main';
         await loadAll();
       }
-      $('topSub').textContent = settings.file.siteName || 'Upload stock and manage the website';
+      $('topSub').textContent = (settings.file.siteName || 'Upload stock and manage the website') + (DEMO ? ' · DEMO' : '');
       tab('dash');
     } catch (err) { $('topSub').textContent = err.message; }
   }
   detectPhp().then(() => {
     if (PHP) { if (phpInfo.loggedIn) start(); else showAuth(); }
-    else if (token) start(); else showAuth();
+    else if (token || DEMO) start(); else showAuth();
   });
 })();
