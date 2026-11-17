@@ -37,6 +37,17 @@
     .steps li { margin-bottom: 4px; }
     .steps b { color: var(--text); }
     .top .btn { padding: 8px 12px; font-size: 14px; }
+    .tabs .count { background: var(--out); color: #fff; border-radius: 999px; font-size: 12px; padding: 1px 7px; margin-left: 4px; }
+    .req { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+    .req.new { border-left: 4px solid var(--accent); }
+    .req .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .req .prod { font-weight: 600; margin-top: 6px; }
+    .req .who { font-size: 14px; color: var(--muted); }
+    .req .msgtxt { margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .req .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .req .btns .btn { padding: 7px 12px; font-size: 14px; }
+    .tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); text-transform: uppercase; }
+    .tag.st-new { background: var(--accent-soft); color: var(--accent-2); }
   </style>
 </head>
 <body>
@@ -52,7 +63,18 @@
 
   <!-- connect with GitHub token -->
   <div id="auth" class="wrap hidden">
-    <form class="center-card" id="authForm" style="max-width:520px">
+    <!-- PHP hosting: normal password login -->
+    <form class="center-card hidden" id="pwLoginForm">
+      <h2 id="pwTitle">Admin login</h2>
+      <p class="muted hidden" id="setupText">First time setup: choose an admin password (minimum 8 characters). Keep it safe.</p>
+      <div id="pwLoginMsg"></div>
+      <div class="field"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" required></div>
+      <div class="field hidden" id="pw2Wrap"><input id="pw2" type="password" placeholder="Confirm password" autocomplete="new-password"></div>
+      <button class="btn accent" style="width:100%" id="pwBtn">Login</button>
+    </form>
+
+    <!-- GitHub Pages: GitHub token login -->
+    <form class="center-card hidden" id="authForm" style="max-width:520px">
       <h2>Admin login</h2>
       <p class="muted">This website is hosted on GitHub. To upload stock, log in with a <b>GitHub access token</b> for the repository <b id="repoName"></b>. The token is saved only in this browser.</p>
       <div id="authMsg"></div>
@@ -76,6 +98,7 @@
       <button data-tab="dash" class="active">Dashboard</button>
       <button data-tab="upload">Upload stock</button>
       <button data-tab="products">Products</button>
+      <button data-tab="requests" class="hidden" id="reqTabBtn">Requests <span class="count hidden" id="reqCount"></span></button>
       <button data-tab="settings">Settings</button>
     </nav>
 
@@ -85,7 +108,7 @@
         <div id="liveMsg"></div>
         <div class="stats" id="stats"></div>
         <div class="card" style="margin-top:12px" id="lastUpload"></div>
-        <div class="card muted">Retailer orders and product requests arrive on your <b>WhatsApp</b> (<span id="waNum"></span>).</div>
+        <div class="card muted" id="waNote">Retailer orders and product requests arrive on your <b>WhatsApp</b> (<span id="waNum"></span>).</div>
         <h3>Upload history</h3>
         <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Details</th></tr></thead><tbody id="history"></tbody></table></div>
       </section>
@@ -114,6 +137,15 @@
         <button class="btn secondary more hidden" id="pmore" style="margin-top:8px">Show more</button>
       </section>
 
+      <section id="tab-requests" class="hidden">
+        <div class="row" style="justify-content:space-between"><h2>Retailer requests</h2><button class="btn secondary" id="reqCsv" style="padding:8px 12px;font-size:14px">Download Excel (CSV)</button></div>
+        <div class="row" style="margin-bottom:10px">
+          <select id="rf"><option value="open">New + seen</option><option value="new">New only</option><option value="done">Done</option><option value="">All</option></select>
+          <input id="rq" type="search" placeholder="Search shop, product, mobile…">
+        </div>
+        <div id="rlist"></div>
+      </section>
+
       <section id="tab-settings" class="hidden">
         <h2>Settings</h2>
         <form class="card" id="setForm">
@@ -132,6 +164,15 @@
               <select id="sOut"><option value="1">Show them (marked Out of stock)</option><option value="0">Hide them</option></select></div>
           </div>
           <div class="actions"><button class="btn accent">Save settings</button></div>
+        </form>
+        <form class="card hidden" id="pwForm">
+          <h3 style="margin-top:0">Change admin password</h3>
+          <div id="pwMsg"></div>
+          <div class="grid2">
+            <div class="field"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password" required></div>
+            <div class="field"><label for="pwNew">New password (min 8)</label><input id="pwNew" type="password" autocomplete="new-password" required minlength="8"></div>
+          </div>
+          <div class="actions"><button class="btn">Change password</button></div>
         </form>
       </section>
     </main>

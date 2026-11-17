@@ -3,6 +3,32 @@
 A website where your retail shops can search your stock on their phones, and send an
 order or a new-product request. The admin uploads the stock Excel every day.
 
+## On PHP hosting (MilesWeb / Hostinger / any cPanel): recommended
+
+The same files run on normal shared hosting, using `api.php`. You do not need Node.js or a database.
+
+What you get on PHP hosting:
+- Admin login with a normal password.
+- Requests are saved on the website, and the admin sees them in a **Requests** tab, with Call, WhatsApp, Mark done and CSV download.
+- Upload and Undo work instantly.
+- Data is stored in `data/`, which is blocked from the web.
+
+How to put it on the hosting:
+1. Log in to **cPanel**. In **Select PHP Version**, choose PHP 8.1 or newer (8.2 is fine).
+2. Open **File Manager → public_html**.
+   - If WordPress is already installed there, create a folder such as `stock` instead. The website will then open at `yourdomain.com/stock/`.
+3. **Upload** `website-upload.zip`, right-click it and choose **Extract**.
+4. Open `yourdomain.com/admin.html` (or `/stock/admin.html`) and **set the admin password**. Do this immediately.
+5. Turn on free SSL: cPanel → **SSL/TLS Status → Run AutoSSL**.
+6. Every day: Admin → Upload stock → choose the Excel → **Publish**.
+
+The upload zip contains these files:
+- `index.html`, `admin.html`, `api.php`, `.htaccess`
+- `public/` (style.css, search.js, app.js)
+- `lib/`
+- `static/`
+- `stock/`
+
 ## Live website (GitHub Pages)
 
 - Retailer website: https://primewebsitepro.github.io/pdf/

@@ -1,6 +1,7 @@
-/* Admin panel for the GitHub Pages version.
- * Stock and settings are saved as JSON files in the GitHub repository through the GitHub API;
- * GitHub Pages then republishes the website (about 1 minute).
+/* Admin panel for the static website. Two storage backends:
+ *  - PHP hosting (cPanel, MilesWeb, Hostinger...): api.php saves stock/settings/requests on the server.
+ *  - GitHub Pages: stock and settings are saved as JSON files in the GitHub repository via the GitHub API;
+ *    GitHub Pages then republishes the website (about 1 minute).
  */
 (function () {
   'use strict';
@@ -24,6 +25,26 @@
   const AUTHOR = { name: OWNER, email: OWNER + '@users.noreply.github.com' };
   let token = ls.get('gh_token');
   let branch = 'main';
+  let PHP = false, phpInfo = null;
+
+  // ---------- PHP backend ----------
+  async function php(action, body, query) {
+    const res = await fetch('api.php?action=' + action + (query || ''), {
+      method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'X-Requested-With': 'stockportal', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && !['login', 'password'].includes(action)) { showAuth(); throw new Error('Please log in again'); }
+    if (!res.ok) throw Object.assign(new Error(data.error || 'Server error ' + res.status), { status: res.status });
+    return data;
+  }
+  async function detectPhp() {
+    try {
+      const d = await fetch('api.php?action=info&t=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' }).then((r) => r.json());
+      if (d && d.mode === 'php') { PHP = true; phpInfo = d; }
+    } catch { /* not PHP hosting */ }
+  }
 
   // ---------- GitHub API ----------
   async function gh(path, opts = {}) {
@@ -58,19 +79,73 @@
   let stock = { file: null, sha: null, items: [] }, settings = { file: null, sha: null }, pindex = [], pShown = 100;
 
   async function loadAll() {
+    if (PHP) {
+      const [sj, stj] = await Promise.all([php('stock'), php('settings')]);
+      stock = { file: sj.version ? sj : null, sha: null, items: sj.items && sj.items.length ? StockImporter.fromStockFile(sj) : [] };
+      settings = { file: stj || {}, sha: null };
+      pindex = StockSearch.buildIndex(stock.items);
+      return;
+    }
     const [s, st] = await Promise.all([getFile('stock/stock.json'), getFile('stock/settings.json')]);
     stock = { file: s.json, sha: s.sha, items: s.json ? StockImporter.fromStockFile(s.json) : [] };
     settings = { file: st.json || {}, sha: st.sha };
     pindex = StockSearch.buildIndex(stock.items);
   }
 
+  // ---------- storage operations (PHP or GitHub) ----------
+  async function saveStock(fileObj, message) {
+    if (PHP) return php('save_stock', fileObj, '&message=' + encodeURIComponent(message));
+    return putFile('stock/stock.json', fileObj, message, stock.sha);
+  }
+  async function saveSettings(next) {
+    if (PHP) return php('save_settings', next);
+    return putFile('stock/settings.json', next, 'Update website settings', settings.sha);
+  }
+  async function loadHistory() {
+    if (PHP) { const h = await php('history'); return h.items.map((x) => ({ at: x.at, message: x.message })); }
+    const commits = await gh('/commits?path=stock/stock.json&per_page=15&sha=' + branch);
+    return commits.map((c) => ({ at: c.commit.author.date, message: c.commit.message.split('\n')[0] }));
+  }
+  async function undoLast() {
+    if (PHP) return php('undo', {});
+    const commits = await gh('/commits?path=stock/stock.json&per_page=2&sha=' + branch);
+    if (commits.length < 2) throw new Error('There is no earlier stock to restore.');
+    const prev = await getFile('stock/stock.json', commits[1].sha);
+    const restored = { ...prev.json, version: (stock.file.version || 0) + 1 };
+    await putFile('stock/stock.json', restored, 'Restore previous stock (as on ' + (prev.json.asOf || '-') + ')', stock.sha);
+    return { version: restored.version };
+  }
+
   // ---------- auth ----------
-  function logout() { token = ''; ls.set('gh_token', ''); showAuth(); }
+  async function logout() {
+    if (PHP) { await php('logout', {}).catch(() => {}); phpInfo.loggedIn = false; }
+    token = ''; ls.set('gh_token', ''); showAuth();
+  }
   function showAuth() {
     $('panel').classList.add('hidden'); $('logout').classList.add('hidden'); $('auth').classList.remove('hidden');
+    if (PHP) {
+      const setup = !!phpInfo.setupNeeded;
+      $('pwLoginForm').classList.remove('hidden'); $('authForm').classList.add('hidden');
+      $('pwTitle').textContent = setup ? 'Set admin password' : 'Admin login';
+      $('setupText').classList.toggle('hidden', !setup); $('pw2Wrap').classList.toggle('hidden', !setup);
+      $('pwBtn').textContent = setup ? 'Save password' : 'Login';
+      $('pw').focus();
+      return;
+    }
+    $('authForm').classList.remove('hidden'); $('pwLoginForm').classList.add('hidden');
     $('repoName').textContent = $('repoName2').textContent = OWNER + '/' + REPO;
   }
   $('logout').addEventListener('click', logout);
+  $('pwLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const setup = !!phpInfo.setupNeeded, password = $('pw').value;
+    if (setup && password !== $('pw2').value) return msg('pwLoginMsg', 'Passwords do not match');
+    try {
+      await php(setup ? 'setup' : 'login', { password });
+      phpInfo.setupNeeded = false; $('pw').value = $('pw2').value = ''; msg('pwLoginMsg', '');
+      start();
+    } catch (err) { msg('pwLoginMsg', err.message); }
+  });
   $('authForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     token = $('token').value.trim();
@@ -89,6 +164,7 @@
     if (name === 'dash') renderDash();
     if (name === 'products') renderProducts();
     if (name === 'settings') renderSettings();
+    if (name === 'requests') loadRequests();
   }
   $('nav').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); });
   document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) tab(g.dataset.go); });
@@ -108,8 +184,8 @@
          <div class="row"><button class="btn accent" data-go="upload">Upload new stock</button><button class="btn secondary" id="undo">Undo last upload</button></div></div>`
       : '<div class="row" style="justify-content:space-between"><b>No stock uploaded yet.</b><button class="btn accent" data-go="upload">Upload stock file</button></div>';
     try {
-      const commits = await gh('/commits?path=stock/stock.json&per_page=15&sha=' + branch);
-      $('history').innerHTML = commits.map((c) => `<tr><td>${when(c.commit.author.date)}</td><td>${esc(c.commit.message.split('\n')[0])}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No uploads yet</td></tr>';
+      const h = await loadHistory();
+      $('history').innerHTML = h.map((c) => `<tr><td>${when(c.at)}</td><td>${esc(c.message)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No uploads yet</td></tr>';
     } catch { $('history').innerHTML = '<tr><td colspan="2" class="muted">Could not load history</td></tr>'; }
   }
 
@@ -117,18 +193,15 @@
     if (e.target.id !== 'undo') return;
     if (!confirm('Restore the stock from before the last upload?')) return;
     try {
-      const commits = await gh('/commits?path=stock/stock.json&per_page=2&sha=' + branch);
-      if (commits.length < 2) throw new Error('There is no earlier stock to restore.');
-      const prev = await getFile('stock/stock.json', commits[1].sha);
-      const restored = { ...prev.json, version: (stock.file.version || 0) + 1 };
-      await putFile('stock/stock.json', restored, 'Restore previous stock (as on ' + (prev.json.asOf || '-') + ')', stock.sha);
-      await loadAll(); renderDash(); watchLive(restored.version);
+      const r = await undoLast();
+      await loadAll(); renderDash(); watchLive(r.version);
     } catch (err) { toast(err.message); }
   });
 
   // Wait until GitHub Pages serves the new version, then say so.
   async function watchLive(version) {
     const box = $('liveMsg');
+    if (PHP) { box.innerHTML = '<div class="msg ok">✔ Saved. The website is now showing the new stock.</div>'; toast('Website updated'); return; }
     box.innerHTML = '<div class="msg ok">Saved. The website is updating… (about 1 minute)</div>';
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 10000));
@@ -178,9 +251,9 @@
     try {
       const fileObj = StockImporter.toStockFile(pending.result, pending.fileName, stock.file ? stock.file.version : 0);
       const c = pending.changes;
-      await putFile('stock/stock.json', fileObj, `Stock as on ${fileObj.asOf || '-'}: ${fileObj.stats.products} products (+${c.added} new, ${c.changed} changed, -${c.removed} removed)`, stock.sha);
+      await saveStock(fileObj, `Stock as on ${fileObj.asOf || '-'}: ${fileObj.stats.products} products (+${c.added} new, ${c.changed} changed, -${c.removed} removed)`);
       pending = null;
-      $('uploadResult').innerHTML = '<div class="msg ok">✔ Published. The website will show the new stock in about 1 minute.</div>';
+      $('uploadResult').innerHTML = PHP ? '<div class="msg ok">✔ Published. The website now shows the new stock.</div>' : '<div class="msg ok">✔ Published. The website will show the new stock in about 1 minute.</div>';
       await loadAll();
       tab('dash');
       watchLive(fileObj.version);
@@ -235,9 +308,61 @@
       lowStockLimit: Math.max(0, Number($('sLow').value) || 0), showOutOfStock: $('sOut').value === '1',
     };
     try {
-      await putFile('stock/settings.json', next, 'Update website settings', settings.sha);
-      await loadAll(); msg('setMsg', 'Saved. The website will update in about 1 minute.', true);
+      await saveSettings(next);
+      await loadAll(); msg('setMsg', PHP ? 'Settings saved.' : 'Saved. The website will update in about 1 minute.', true);
     } catch (err) { msg('setMsg', err.message); }
+  });
+
+  // ---------- requests (PHP hosting only) ----------
+  let requests = [];
+  const typeLabel = { order: 'Order', new: 'New product', other: 'Other' };
+  function setCount(n) { const c = $('reqCount'); c.textContent = n; c.classList.toggle('hidden', !n); }
+  async function loadRequests() { requests = (await php('requests')).items; renderRequests(); }
+  function renderRequests() {
+    const f = $('rf').value, q = $('rq').value.trim().toLowerCase();
+    const list = requests.filter((r) => (!f || (f === 'open' ? r.status !== 'done' : r.status === f))
+      && (!q || [r.shop, r.product, r.phone, r.message].join(' ').toLowerCase().includes(q)));
+    setCount(requests.filter((r) => r.status === 'new').length);
+    $('rlist').innerHTML = list.map((r) => {
+      const digits = String(r.phone).replace(/\D/g, ''); const wa = digits.length === 10 ? '91' + digits : digits;
+      const waText = encodeURIComponent(`Hello ${r.shop}, regarding your request: ${r.product || r.message}`);
+      return `<div class="req ${r.status === 'new' ? 'new' : ''}">
+        <div class="head"><div><span class="tag">${esc(typeLabel[r.type] || r.type)}</span> <span class="tag st-${esc(r.status)}">${esc(r.status)}</span></div><div class="muted">${when(r.at)}</div></div>
+        <div class="prod">${esc(r.product || '(no product name)')}${r.qty ? ` — Qty: ${esc(r.qty)}` : ''}</div>
+        <div class="who">${esc(r.shop)} · ${esc(r.phone)}</div>
+        ${r.message ? `<div class="msgtxt">${esc(r.message)}</div>` : ''}
+        <div class="btns">
+          <a class="btn secondary" href="tel:${esc(r.phone)}">Call</a>
+          <a class="btn secondary" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${waText}">WhatsApp</a>
+          ${r.status !== 'done' ? `<button class="btn accent" data-st="done" data-id="${esc(r.id)}">Mark done</button>` : `<button class="btn secondary" data-st="new" data-id="${esc(r.id)}">Re-open</button>`}
+          ${r.status === 'new' ? `<button class="btn secondary" data-st="seen" data-id="${esc(r.id)}">Mark seen</button>` : ''}
+          <button class="btn secondary" data-del="${esc(r.id)}">Delete</button>
+        </div></div>`;
+    }).join('') || '<div class="card muted">No requests here.</div>';
+  }
+  $('rf').addEventListener('change', renderRequests);
+  $('rq').addEventListener('input', renderRequests);
+  $('rlist').addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    try {
+      if (b.dataset.st) await php('request_update', { id: b.dataset.id, status: b.dataset.st });
+      else if (b.dataset.del) { if (!confirm('Delete this request?')) return; await php('request_delete', { id: b.dataset.del }); }
+      loadRequests();
+    } catch (err) { toast(err.message); }
+  });
+  $('reqCsv').addEventListener('click', () => {
+    const cell = (v) => { const s = String(v ?? ''); return /[",\n\r]/.test(s) || /^[=+\-@]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = [['Date', 'Type', 'Product', 'Qty', 'Shop', 'Mobile', 'Message', 'Status']]
+      .concat(requests.map((r) => [r.at, r.type, r.product, r.qty, r.shop, r.phone, r.message, r.status]));
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'requests.csv'; document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('pwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await php('password', { current: $('pwCur').value, password: $('pwNew').value });
+      $('pwCur').value = $('pwNew').value = ''; msg('pwMsg', 'Password changed', true);
+    } catch (err) { msg('pwMsg', err.message); }
   });
 
   // ---------- start ----------
@@ -245,13 +370,23 @@
     $('auth').classList.add('hidden');
     $('panel').classList.remove('hidden'); $('logout').classList.remove('hidden');
     $('topSub').textContent = 'Loading…';
+    $('reqTabBtn').classList.toggle('hidden', !PHP); $('pwForm').classList.toggle('hidden', !PHP);
+    if (PHP) $('waNote').classList.add('hidden');
     try {
-      const repo = await gh('');
-      branch = repo.default_branch || 'main';
-      await loadAll();
+      if (PHP) {
+        await loadAll();
+        php('requests').then((d) => setCount(d.items.filter((r) => r.status === 'new').length)).catch(() => {});
+      } else {
+        const repo = await gh('');
+        branch = repo.default_branch || 'main';
+        await loadAll();
+      }
       $('topSub').textContent = settings.file.siteName || 'Upload stock and manage the website';
       tab('dash');
     } catch (err) { $('topSub').textContent = err.message; }
   }
-  if (token) start(); else showAuth();
+  detectPhp().then(() => {
+    if (PHP) { if (phpInfo.loggedIn) start(); else showAuth(); }
+    else if (token) start(); else showAuth();
+  });
 })();

@@ -15,9 +15,20 @@
     return data;
   }
   // ---------- data source ----------
-  // Node server: /api/...   |   GitHub Pages (window.STOCK_STATIC): stock/stock.json + stock/settings.json
+  // Node server: /api/...
+  // Static page (window.STOCK_STATIC):
+  //   - PHP hosting (cPanel / Hostinger / MilesWeb): api.php serves stock + saves requests
+  //   - GitHub Pages: stock/stock.json + stock/settings.json, requests go to WhatsApp
   const STATIC = !!window.STOCK_STATIC;
+  let PHP = false, STOCK_URL = 'stock/stock.json', SETTINGS_URL = 'stock/settings.json';
   let settings = {}, staticStock = null;
+  async function detectPhp() {
+    try {
+      const r = await fetch('api.php?action=info&t=' + Date.now(), { cache: 'no-store' });
+      const d = await r.json();
+      if (d && d.mode === 'php') { PHP = true; STOCK_URL = 'api.php?action=stock'; SETTINGS_URL = 'api.php?action=settings'; }
+    } catch { /* GitHub Pages: api.php is not executed */ }
+  }
   async function getJSON(url) {
     const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('Could not load ' + url);
@@ -25,13 +36,15 @@
   }
   async function getInfo() {
     if (!STATIC) return (settings = await api('/api/info'));
-    settings = await getJSON('stock/settings.json');
-    staticStock = await getJSON('stock/stock.json');
+    await detectPhp();
+    if (PHP) $('reqSend').textContent = 'Send request';
+    settings = await getJSON(SETTINGS_URL);
+    staticStock = await getJSON(STOCK_URL);
     return { ...settings, authorized: true, version: staticStock.version };
   }
   async function getProducts() {
     if (!STATIC) return api('/api/products');
-    const st = staticStock || await getJSON('stock/stock.json');
+    const st = staticStock || await getJSON(STOCK_URL);
     staticStock = null;
     const f = st.fields, iStock = f.indexOf('stock'), low = settings.lowStockLimit ?? 5;
     let rows = st.items;
@@ -49,6 +62,7 @@
   }
   async function sendRequest(body) {
     if (!STATIC) return api('/api/requests', { method: 'POST', body: JSON.stringify(body) });
+    if (PHP) return api('api.php?action=request', { method: 'POST', body: JSON.stringify(body) });
     // No server on GitHub Pages: the request is sent to the business on WhatsApp.
     const type = { order: 'ORDER', new: 'NEW PRODUCT REQUEST', other: 'REQUEST' }[body.type] || 'REQUEST';
     const lines = [`*${type}*`, body.product && `Product: ${body.product}`, body.qty && `Qty: ${body.qty}`,
@@ -226,8 +240,8 @@
     if (document.hidden) return;
     try {
       if (STATIC) {
-        const st = await getJSON('stock/stock.json');
-        if (st.version !== version) { settings = await getJSON('stock/settings.json'); staticStock = st; await loadProducts(true); }
+        const st = await getJSON(STOCK_URL);
+        if (st.version !== version) { settings = await getJSON(SETTINGS_URL); staticStock = st; await loadProducts(true); }
         return;
       }
       const info = await api('/api/info');
@@ -262,7 +276,7 @@
       await sendRequest(body);
       store.set('shop', body.shop); store.set('phone', body.phone);
       closeRequest();
-      toast(STATIC ? 'Opening WhatsApp… press Send there.' : 'Request sent. Thank you!');
+      toast(STATIC && !PHP ? 'Opening WhatsApp… press Send there.' : 'Request sent. Thank you!');
     } catch (err) {
       $('reqMsg').innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
     } finally { $('reqSend').disabled = false; }
