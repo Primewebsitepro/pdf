@@ -7,7 +7,7 @@
   <title>Stock Admin</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
-  <link rel="stylesheet" href="public/style.css">
+  <link rel="stylesheet" href="public/style.css?v=202611171524">
   <style>
     .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
     .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
@@ -191,10 +191,25 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="public/search.js"></script>
-  <script src="lib/xlsx.js"></script>
-  <script src="lib/importer.js"></script>
-  <script src="lib/pdf.js"></script>
-  <script src="static/admin-gh.js"></script>
+  <script src="public/search.js?v=202611171524"></script>
+  <script src="lib/xlsx.js?v=202611171524"></script>
+  <script src="lib/importer.js?v=202611171524"></script>
+  <script src="lib/pdf.js?v=202611171524"></script>
+  <script src="static/admin-gh.js?v=202611171524"></script>
+  <script>
+    // Safety net: if an old cached copy of the page breaks loading, reload once with a fresh copy,
+    // and if that still fails show a Refresh button instead of a blank page.
+    setTimeout(function () {
+      var auth = document.getElementById('auth'), panel = document.getElementById('panel');
+      var blank = auth && panel && auth.classList.contains('hidden') && panel.classList.contains('hidden');
+      if (!blank) return;
+      var tried = false;
+      try { tried = sessionStorage.getItem('fresh-reload') === '1'; sessionStorage.setItem('fresh-reload', '1'); } catch (e) { tried = true; }
+      if (!tried) { location.replace(location.pathname + '?fresh=' + Date.now()); return; }
+      auth.classList.remove('hidden');
+      auth.innerHTML = '<div class="center-card"><h2>Please refresh</h2><p class="muted">The page was updated. Press the button (or Ctrl + F5 on a computer).</p>' +
+        '<button class="btn accent" style="width:100%" onclick="location.replace(location.pathname + \'?fresh=\' + Date.now())">Refresh</button></div>';
+    }, 10000);
+  </script>
 </body>
 </html>
