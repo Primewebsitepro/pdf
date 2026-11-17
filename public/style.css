@@ -239,7 +239,7 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1
 .asof b { font-size: clamp(26px, 5vw, 34px); font-weight: 600; color: var(--brand); letter-spacing: -.01em; line-height: 1.1; }
 .asof-upd { font-size: 13.5px; color: var(--muted); }
 @media (prefers-color-scheme: dark) { .asof b { color: var(--text); } }
-.searchbar { background: var(--card); padding: 14px 0 18px; box-shadow: 0 6px 16px rgba(11,46,79,.06); }
+.searchbar { background: var(--card); padding: 14px 0 18px; box-shadow: none; border-bottom: 0; }
 .search-box input { background: var(--bg); font-size: 19px; padding-top: 16px; padding-bottom: 16px; }
 .search-box input:focus { background: var(--card); }
 

@@ -227,7 +227,7 @@
     const r = currentResults();
     $('homeInfo').classList.toggle('hidden', !!r); // feature cards only when nothing is searched
     if (!r) {
-      meta.textContent = items.length ? `${items.length.toLocaleString('en-IN')} products available. Type any part of a name or salt to search.` : '';
+      meta.textContent = '';
       list.innerHTML = '';
       return;
     }
