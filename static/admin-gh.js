@@ -454,7 +454,6 @@
     $('topSub').textContent = 'Loading…';
     $('reqTabBtn').classList.toggle('hidden', !PHP); $('pwForm').classList.toggle('hidden', !PHP);
     $('ghPwForm').classList.toggle('hidden', PHP || DEMO);
-    $('demoBar').classList.toggle('hidden', !DEMO);
     if (PHP) $('waNote').classList.add('hidden');
     try {
       if (DEMO) {
