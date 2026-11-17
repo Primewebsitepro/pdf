@@ -103,7 +103,7 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -.01em; }
 .btn.secondary:hover { background: var(--bg); }
 .btn.danger { background: var(--out); }
 .btn:disabled { opacity: .6; cursor: default; }
-@media (prefers-color-scheme: dark) { .btn:not(.secondary):not(.ghost):not(.accent) { background: #1d4a78; } }
+@media (prefers-color-scheme: dark) { .btn:not(.secondary):not(.ghost):not(.accent):not(.fab) { background: #1d4a78; } }
 
 /* ===== search bar ===== */
 .searchbar { position: sticky; top: 64px; z-index: 30; background: var(--bg); padding: 14px 0 10px; border-bottom: 1px solid var(--line); }
