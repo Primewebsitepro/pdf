@@ -29,6 +29,17 @@ The upload zip contains these files:
 - `static/`
 - `stock/`
 
+## Email alerts for new orders (PHP hosting)
+
+When a retailer submits an Order or Request, `api.php` saves it and emails the business. The email includes the product photo, if one was added.
+
+To set this up, copy `mail-config.example.php` to `mail-config.php` on the server and fill in the SMTP details:
+- the mailbox used only for **sending**
+- its password
+- the address that **receives** the emails
+
+Replies go to the receiving address, never to the sending mailbox. `mail-config.php` is in `.gitignore`, and `.htaccess` blocks it from the web. **Never commit it.** If sending fails, the reason is written to `data/mail.log`.
+
 ## Live website (GitHub Pages)
 
 - Retailer website: https://primewebsitepro.github.io/pdf/

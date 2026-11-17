@@ -131,7 +131,16 @@ switch ("$method $action") {
         $all = read_json('requests.json', []);
         array_unshift($all, $r);
         write_json('requests.json', array_slice($all, 0, 5000));
-        out(['ok' => true]);
+        // Reply to the retailer first, then email the business (so the retailer never waits for email).
+        http_response_code(200);
+        echo json_encode(['ok' => true]);
+        if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+        elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+        else flush();
+        ignore_user_abort(true);
+        require_once __DIR__ . '/lib/mailer.php';
+        send_request_email($r, $bin ?? null, $ext ?? 'jpg');
+        exit;
 
     // ===== admin auth =====
     case 'POST setup':
