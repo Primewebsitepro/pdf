@@ -115,14 +115,25 @@ async function call(method, p, { body, cookie, headers = {}, raw } = {}) {
   // --- product request
   r = await call('POST', '/api/requests', { body: { type: 'new', product: 'CERBOPROST INJ', qty: '5', shop: 'Shree Medical', phone: '9876543210', message: '<script>alert(1)</script>' } });
   assert.strictEqual(r.status, 200); ok('retailer can send product request');
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  r = await call('POST', '/api/requests', { body: { type: 'order', product: 'PHOTO TEST', shop: 'Photo Shop', phone: '9876543210', photo: png } });
+  assert.strictEqual(r.status, 200);
+  r = await call('GET', '/api/admin/requests', { cookie: adminCookie });
+  const withPhoto = r.data.items.find((x) => x.product === 'PHOTO TEST');
+  assert.strictEqual(withPhoto.photo, 'png');
+  const ph = await fetch(base + '/api/admin/photo/' + withPhoto.id, { headers: { Cookie: adminCookie } });
+  assert.strictEqual(ph.headers.get('content-type'), 'image/png');
+  assert.strictEqual((await fetch(base + '/api/admin/photo/' + withPhoto.id)).status, 401);
+  ok('request with photo saved; photo visible to admin only');
   r = await call('POST', '/api/requests', { body: { type: 'new', product: 'X' } });
   assert.strictEqual(r.status, 400); ok('request without shop/mobile rejected');
   r = await call('GET', '/api/admin/requests', { cookie: adminCookie });
-  assert.strictEqual(r.data.items[0].shop, 'Shree Medical');
-  const id = r.data.items[0].id;
+  const shree = r.data.items.find((x) => x.shop === 'Shree Medical');
+  assert.ok(shree);
+  const id = shree.id;
   r = await call('POST', '/api/admin/requests/' + id, { cookie: adminCookie, body: { status: 'done' } });
   r = await call('GET', '/api/admin/requests', { cookie: adminCookie });
-  assert.strictEqual(r.data.items[0].status, 'done'); ok('admin sees request and marks it done');
+  assert.strictEqual(r.data.items.find((x) => x.id === id).status, 'done'); ok('admin sees request and marks it done');
   r = await call('GET', '/api/admin/requests.csv', { cookie: adminCookie });
   assert.ok(String(r.data).includes('Shree Medical')); ok('requests export to CSV');
 

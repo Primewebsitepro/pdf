@@ -37,7 +37,6 @@
   async function getInfo() {
     if (!STATIC) return (settings = await api('/api/info'));
     await detectPhp();
-    if (PHP) $('reqSend').textContent = 'Send request';
     settings = demoGet('demo_settings') || await getJSON(SETTINGS_URL);
     staticStock = await loadStockSrc();
     if (isDemo()) showDemoBar();
@@ -71,15 +70,47 @@
     const num = digits.length === 10 ? '91' + digits : digits;
     return 'https://wa.me/' + num + (text ? '?text=' + encodeURIComponent(text) : '');
   }
-  async function sendRequest(body) {
-    if (!STATIC) return api('/api/requests', { method: 'POST', body: JSON.stringify(body) });
-    if (PHP) return api('api.php?action=request', { method: 'POST', body: JSON.stringify(body) });
+  // Returns how the request was delivered: 'server' | 'shared' | 'whatsapp' | 'whatsapp-nophoto'
+  async function sendRequest(body, photo) {
+    if (!STATIC || PHP) {
+      if (photo) body = { ...body, photo: await blobToDataUrl(photo) };
+      await api(STATIC ? 'api.php?action=request' : '/api/requests', { method: 'POST', body: JSON.stringify(body) });
+      return 'server';
+    }
     // No server on GitHub Pages: the request is sent to the business on WhatsApp.
     const type = { order: 'ORDER', new: 'NEW PRODUCT REQUEST', other: 'REQUEST' }[body.type] || 'REQUEST';
     const lines = [`*${type}*`, body.product && `Product: ${body.product}`, body.qty && `Qty: ${body.qty}`,
       `Shop: ${body.shop}`, `Mobile: ${body.phone}`, body.message && `Message: ${body.message}`].filter(Boolean);
+    if (photo) {
+      // On phones, share the photo + text (choose WhatsApp, then the business chat).
+      const file = new File([photo], 'product-photo.jpg', { type: 'image/jpeg' });
+      const mobile = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+      if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+        const to = `Send to: ${settings.siteName || ''} ${settings.contactPhone || ''}`.trim();
+        try { await navigator.share({ files: [file], text: lines.join('\n') + '\n\n' + to }); }
+        catch (e) { if (e && e.name === 'AbortError') throw new Error('Sharing was cancelled. Press Submit to try again.'); throw e; }
+        return 'shared';
+      }
+      window.open(waLink(lines.join('\n') + '\n(Photo attached separately)'), '_blank', 'noopener');
+      return 'whatsapp-nophoto';
+    }
     window.open(waLink(lines.join('\n')), '_blank', 'noopener');
+    return 'whatsapp';
   }
+
+  // Shrink photos before sending (max 1280px JPEG) so they upload quickly on mobile data.
+  async function resizeImage(file, max = 1280) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('This photo could not be opened. Please choose a JPG or PNG photo.')); i.src = url; });
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.82));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
@@ -118,14 +149,15 @@
     return out + esc(text.slice(pos));
   }
 
-  function badge(s) {
+  // Big stock figure shown in the middle of each product card.
+  function stockBlock(s) {
     if (stockDisplay === 'status') {
-      if (s === 2) return '<span class="badge ok">In stock</span>';
-      if (s === 1) return '<span class="badge low">Low stock</span>';
-      return '<span class="badge out">Out of stock</span>';
+      if (s === 2) return '<div class="stk ok status"><b>In stock</b></div>';
+      if (s === 1) return '<div class="stk low status"><b>Low stock</b></div>';
+      return '<div class="stk out status"><b>Out of stock</b></div>';
     }
-    if (s > 0) return `<span class="badge ok">Stock: ${esc(s)}</span>`;
-    return '<span class="badge out">Out of stock</span>';
+    if (s > 0) return `<div class="stk ok"><b>${esc(Number(s).toLocaleString('en-IN'))}</b><small>in stock</small></div>`;
+    return '<div class="stk out"><b>Out</b><small>of stock</small></div>';
   }
 
   // ---------- rendering ----------
@@ -206,14 +238,16 @@
     }
     const html = r.list.slice(0, shown).map((it) => `
       <li class="item">
-        <div class="name">${highlight(it.name, r.q)}${it.scheme ? `<span class="scheme">Scheme ${esc(it.scheme)}</span>` : ''}${it.code ? `<span class="code">${highlight(it.code, r.q)}</span>` : ''}</div>
-        <div class="right">
-          <span class="mrp">${fmtMrp(it.mrp) ? 'MRP ' + fmtMrp(it.mrp) : ''}</span>
-          ${badge(it.stock)}
-          <button class="req-btn" type="button" data-req="${it.id}">${it.stock > 0 ? 'Order' : 'Request'}</button>
+        <div class="info">
+          <div class="name">${highlight(it.name, r.q)}${it.scheme ? `<span class="scheme">Scheme ${esc(it.scheme)}</span>` : ''}${it.code ? `<span class="code">${highlight(it.code, r.q)}</span>` : ''}</div>
+          ${it.group ? `<div class="group">${highlight(it.group, r.q)}</div>` : ''}
+          <div class="company">${esc(it.company)}</div>
         </div>
-        ${it.group ? `<div class="group">${highlight(it.group, r.q)}</div>` : ''}
-        <div class="company">${esc(it.company)}</div>
+        <div class="mid">
+          ${stockBlock(it.stock)}
+          ${fmtMrp(it.mrp) ? `<div class="mrp">MRP ${fmtMrp(it.mrp)}</div>` : ''}
+        </div>
+        <button class="req-btn${it.stock > 0 ? '' : ' alt'}" type="button" data-req="${it.id}">${it.stock > 0 ? 'Order' : 'Request'}</button>
       </li>`).join('');
     list.innerHTML = html + (total > shown ? `<li><button class="btn secondary more" type="button" id="more">Show more (${(total - shown).toLocaleString('en-IN')} more)</button></li>` : '');
   }
@@ -262,8 +296,27 @@
   }
 
   // ---------- requests ----------
+  let photoBlob = null;
+  function setPhoto(blob) {
+    photoBlob = blob;
+    const prev = $('rPhotoPrev');
+    if (prev.src) URL.revokeObjectURL(prev.src);
+    prev.classList.toggle('hidden', !blob); $('rPhotoRemove').classList.toggle('hidden', !blob);
+    prev.src = blob ? URL.createObjectURL(blob) : '';
+    $('rPhotoLabel').textContent = blob ? 'Change photo' : 'Add photo';
+  }
+  $('rPhoto').addEventListener('change', async () => {
+    const f = $('rPhoto').files[0];
+    $('rPhoto').value = '';
+    if (!f) return;
+    try { setPhoto(await resizeImage(f)); $('reqMsg').innerHTML = ''; }
+    catch (err) { setPhoto(null); $('reqMsg').innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  });
+  $('rPhotoRemove').addEventListener('click', () => setPhoto(null));
+
   function openRequest(product, type) {
     $('reqMsg').innerHTML = '';
+    setPhoto(null);
     $('rProduct').value = product || '';
     $('rQty').value = ''; $('rMessage').value = '';
     $('rShop').value = store.get('shop'); $('rPhone').value = store.get('phone');
@@ -284,10 +337,15 @@
     if (!body.product.trim() && !body.message.trim()) { $('reqMsg').innerHTML = '<div class="msg err">Please write the product name or a message.</div>'; return; }
     $('reqSend').disabled = true;
     try {
-      await sendRequest(body);
+      const how = await sendRequest(body, photoBlob);
       store.set('shop', body.shop); store.set('phone', body.phone);
       closeRequest();
-      toast(STATIC && !PHP ? 'Opening WhatsApp… press Send there.' : 'Request sent. Thank you!');
+      toast({
+        server: 'Request submitted. Thank you!',
+        shared: 'Choose WhatsApp and the business chat, then press Send.',
+        whatsapp: 'Opening WhatsApp… press Send there.',
+        'whatsapp-nophoto': 'WhatsApp opened. Please attach the photo in the chat and press Send.',
+      }[how] || 'Request submitted. Thank you!');
     } catch (err) {
       $('reqMsg').innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
     } finally { $('reqSend').disabled = false; }

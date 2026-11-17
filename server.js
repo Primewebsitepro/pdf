@@ -112,8 +112,8 @@ function readBody(req, limit) {
     req.on('error', reject);
   });
 }
-async function readJsonBody(req) {
-  const buf = await readBody(req, 64 * 1024);
+async function readJsonBody(req, limit = 64 * 1024) {
+  const buf = await readBody(req, limit);
   try { return JSON.parse(buf.toString('utf8') || '{}'); } catch { throw Object.assign(new Error('Bad JSON'), { status: 400 }); }
 }
 const clip = (v, n) => String(v ?? '').trim().slice(0, n);
@@ -300,7 +300,7 @@ async function route(req, res) {
   if (p === '/api/requests' && m === 'POST') {
     if (!publicInfo(req).authorized) return json(req, res, 401, { error: 'Access code required' });
     if (limited('req:' + clientIp(req), 20, 10 * 60000)) return json(req, res, 429, { error: 'Too many requests sent. Please wait a few minutes.' });
-    const b = await readJsonBody(req);
+    const b = await readJsonBody(req, 8 * 1024 * 1024);
     const r = {
       id: crypto.randomBytes(8).toString('hex'),
       at: new Date().toISOString(),
@@ -310,6 +310,16 @@ async function route(req, res) {
       status: 'new',
     };
     if (!r.shop || !r.phone || (!r.product && !r.message)) return json(req, res, 400, { error: 'Please fill shop name, mobile number and product / message.' });
+    if (b.photo) {
+      const pm = String(b.photo).match(/^data:image\/(jpeg|png|webp);base64,(.+)$/);
+      if (!pm) return json(req, res, 400, { error: 'The photo must be an image.' });
+      const bin = Buffer.from(pm[2], 'base64');
+      if (bin.length > 5 * 1024 * 1024) return json(req, res, 400, { error: 'The photo is too large.' });
+      const ext = pm[1] === 'jpeg' ? 'jpg' : pm[1];
+      fs.mkdirSync(path.join(store.DATA_DIR, 'photos'), { recursive: true });
+      fs.writeFileSync(path.join(store.DATA_DIR, 'photos', r.id + '.' + ext), bin);
+      r.photo = ext;
+    }
     const all = store.getRequests();
     all.unshift(r);
     store.setRequests(all.slice(0, 5000));
@@ -380,12 +390,24 @@ async function route(req, res) {
       return send(res, 200, csv, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="requests.csv"' });
     }
 
+    const pm = p.match(/^\/api\/admin\/photo\/([a-f0-9]+)$/);
+    if (pm && m === 'GET') {
+      for (const [ext, mime] of [['jpg', 'image/jpeg'], ['png', 'image/png'], ['webp', 'image/webp']]) {
+        const f = path.join(store.DATA_DIR, 'photos', pm[1] + '.' + ext);
+        if (fs.existsSync(f)) return send(res, 200, fs.readFileSync(f), { 'Content-Type': mime, 'Cache-Control': 'private, max-age=86400' });
+      }
+      return json(req, res, 404, { error: 'Not found' });
+    }
+
     const rm = p.match(/^\/api\/admin\/requests\/([a-f0-9]+)$/);
     if (rm && (m === 'POST' || m === 'DELETE')) {
       const all = store.getRequests();
       const i = all.findIndex((r) => r.id === rm[1]);
       if (i < 0) return json(req, res, 404, { error: 'Not found' });
-      if (m === 'DELETE') all.splice(i, 1);
+      if (m === 'DELETE') {
+        for (const ext of ['jpg', 'png', 'webp']) fs.rmSync(path.join(store.DATA_DIR, 'photos', all[i].id + '.' + ext), { force: true });
+        all.splice(i, 1);
+      }
       else {
         const { status, note } = await readJsonBody(req);
         if (['new', 'seen', 'done'].includes(status)) all[i].status = status;

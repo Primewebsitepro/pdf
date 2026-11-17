@@ -12,7 +12,7 @@
   <title>Meghavi Distributors</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
-  <link rel="stylesheet" href="public/style.css?v=202611171534">
+  <link rel="stylesheet" href="public/style.css?v=202611171800">
 </head>
 <body>
   <!-- ===== Top banner + menu ===== -->
@@ -193,20 +193,32 @@
       </div>
       <div class="field"><label for="rProduct">Product name</label><input id="rProduct" maxlength="200" placeholder="e.g. DOLO 650 TAB"></div>
       <div class="field"><label for="rQty">Quantity</label><input id="rQty" maxlength="40" placeholder="e.g. 10 strips"></div>
+      <div class="field">
+        <label>Product photo <span class="opt">(optional)</span></label>
+        <div class="photo-pick">
+          <label class="photo-btn" for="rPhoto">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span id="rPhotoLabel">Add photo</span>
+          </label>
+          <input type="file" id="rPhoto" accept="image/*" hidden>
+          <img id="rPhotoPrev" class="photo-prev hidden" alt="Selected photo">
+          <button type="button" class="photo-remove hidden" id="rPhotoRemove">Remove</button>
+        </div>
+      </div>
       <div class="field"><label for="rShop">Shop name *</label><input id="rShop" maxlength="120" required autocomplete="organization"></div>
       <div class="field"><label for="rPhone">Mobile number *</label><input id="rPhone" type="tel" inputmode="tel" maxlength="20" required autocomplete="tel"></div>
       <div class="field"><label for="rMessage">Message</label><textarea id="rMessage" maxlength="1000" placeholder="Anything else…"></textarea></div>
       <div class="actions">
         <button type="button" class="btn secondary" id="reqCancel">Cancel</button>
-        <button class="btn accent" id="reqSend">Send on WhatsApp</button>
+        <button class="btn accent" id="reqSend">Submit</button>
       </div>
     </form>
   </div>
   <div class="toast" id="toast"></div>
 
   <script>window.STOCK_STATIC = true;</script>
-  <script src="public/search.js?v=202611171534"></script>
-  <script src="lib/pdf.js?v=202611171534"></script>
-  <script src="public/app.js?v=202611171534"></script>
+  <script src="public/search.js?v=202611171800"></script>
+  <script src="lib/pdf.js?v=202611171800"></script>
+  <script src="public/app.js?v=202611171800"></script>
 </body>
 </html>

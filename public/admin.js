@@ -169,6 +169,7 @@
         <div class="prod" style="margin-top:6px">${esc(r.product || '(no product name)')}${r.qty ? ` — Qty: ${esc(r.qty)}` : ''}</div>
         <div class="who">${esc(r.shop)} · ${esc(r.phone)}</div>
         ${r.message ? `<div class="msgtxt">${esc(r.message)}</div>` : ''}
+        ${r.photo ? `<a href="/api/admin/photo/${esc(r.id)}" target="_blank" rel="noopener"><img class="req-photo" src="/api/admin/photo/${esc(r.id)}" alt="Product photo" loading="lazy"></a>` : ''}
         <div class="btns">
           <a class="btn secondary" href="tel:${esc(r.phone)}">Call</a>
           <a class="btn secondary" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${waText}">WhatsApp</a>

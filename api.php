@@ -116,6 +116,18 @@ switch ("$method $action") {
             'message' => clip($b['message'] ?? '', 1000), 'status' => 'new',
         ];
         if ($r['shop'] === '' || $r['phone'] === '' || ($r['product'] === '' && $r['message'] === '')) fail('Please fill shop name, mobile number and product / message.');
+        // Optional product photo (sent as a data URL, already resized in the browser).
+        $photo = (string) ($b['photo'] ?? '');
+        if ($photo !== '') {
+            if (!preg_match('#^data:image/(jpeg|png|webp);base64,#', $photo, $pm)) fail('The photo must be an image.');
+            $bin = base64_decode(substr($photo, strpos($photo, ',') + 1), true);
+            if ($bin === false || strlen($bin) > 5 * 1024 * 1024) fail('The photo is too large.');
+            if (function_exists('getimagesizefromstring') && @getimagesizefromstring($bin) === false) fail('The photo could not be read.');
+            if (!is_dir(DATA_DIR . '/photos')) @mkdir(DATA_DIR . '/photos', 0755, true);
+            $ext = $pm[1] === 'jpeg' ? 'jpg' : $pm[1];
+            if (file_put_contents(DATA_DIR . '/photos/' . $r['id'] . '.' . $ext, $bin) === false) fail('Could not save the photo.', 500);
+            $r['photo'] = $ext;
+        }
         $all = read_json('requests.json', []);
         array_unshift($all, $r);
         write_json('requests.json', array_slice($all, 0, 5000));
@@ -209,6 +221,15 @@ switch ("$method $action") {
         write_json('settings.json', $s);
         out(['ok' => true, 'settings' => $s]);
 
+    case 'GET photo':
+        require_admin();
+        $pid = preg_replace('/[^a-f0-9]/', '', (string) ($_GET['id'] ?? ''));
+        foreach (['jpg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'] as $ext => $mime) {
+            $f = DATA_DIR . '/photos/' . $pid . '.' . $ext;
+            if ($pid !== '' && is_file($f)) { header('Content-Type: ' . $mime); header('Cache-Control: private, max-age=86400'); readfile($f); exit; }
+        }
+        fail('Not found', 404);
+
     case 'GET requests':
         require_admin();
         out(['items' => read_json('requests.json', [])]);
@@ -221,7 +242,10 @@ switch ("$method $action") {
         $i = null;
         foreach ($all as $k => $r) { if (($r['id'] ?? '') === ($b['id'] ?? null)) { $i = $k; break; } }
         if ($i === null) fail('Not found', 404);
-        if ($action === 'request_delete') array_splice($all, $i, 1);
+        if ($action === 'request_delete') {
+            foreach (['jpg', 'png', 'webp'] as $ext) { @unlink(DATA_DIR . '/photos/' . preg_replace('/[^a-f0-9]/', '', (string) $all[$i]['id']) . '.' . $ext); }
+            array_splice($all, $i, 1);
+        }
         elseif (in_array($b['status'] ?? '', ['new', 'seen', 'done'], true)) $all[$i]['status'] = $b['status'];
         write_json('requests.json', array_values($all));
         out(['ok' => true]);
