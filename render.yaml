@@ -1,0 +1,21 @@
+# One-click deploy on Render (https://render.com) straight from this GitHub repo.
+# Render -> New -> Blueprint -> select this repo.
+# A persistent disk keeps stock, requests and the admin password across restarts
+# (disks need a paid instance type; the free type loses data on every restart).
+services:
+  - type: web
+    name: stock-portal
+    runtime: node
+    plan: starter
+    buildCommand: "echo no build needed"
+    startCommand: node server.js
+    healthCheckPath: /api/info
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: NODE_VERSION
+        value: "20"
+    disk:
+      name: stock-data
+      mountPath: /var/data
+      sizeGB: 1
