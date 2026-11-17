@@ -112,6 +112,7 @@
   }
   const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
@@ -268,12 +269,8 @@
     stockDisplay = data.stockDisplay;
     version = data.version;
     const companies = [...new Set(items.map((i) => i.company))].sort();
-    $('statProducts').textContent = items.length.toLocaleString('en-IN');
-    $('statCompanies').textContent = companies.length.toLocaleString('en-IN');
-    $('aboutCompanies').textContent = Math.floor(companies.length / 50) * 50 + '+';
-    $('statDate').textContent = data.updatedAt ? (data.asOf || fmtTime(data.updatedAt)) : 'Not uploaded';
-    $('asOf').textContent = 'Stock as on';
-    $('statDate').title = data.updatedAt ? 'Last updated ' + fmtTime(data.updatedAt) : '';
+    setText('statDate', data.updatedAt ? (data.asOf || fmtTime(data.updatedAt)) : 'Not uploaded');
+    setText('asOf', data.updatedAt ? 'Updated ' + fmtTime(data.updatedAt) : '');
     const sel = $('company'), keep = sel.value;
     sel.innerHTML = '<option value="">All companies</option>' + companies.map((c) => `<option>${esc(c)}</option>`).join('');
     if (companies.includes(keep)) sel.value = keep;
@@ -379,18 +376,14 @@
     $('siteName').textContent = parts[0] || '';
     $('siteSub').textContent = parts.slice(1).join(' ') || 'Stock portal';
     document.querySelectorAll('.js-site').forEach((el) => { el.textContent = info.siteName; });
-    $('year').textContent = new Date().getFullYear();
+    setText('year', new Date().getFullYear());
     if (info.contactPhone) {
       const digits = info.contactPhone.replace(/\D/g, '');
-      const wa = 'https://wa.me/' + (digits.length === 10 ? '91' + digits : digits);
       const tel = 'tel:' + (digits.length === 10 ? '+91' + digits : '+' + digits);
-      $('tsPhone').href = tel; $('tsPhoneText').textContent = info.contactPhone;
-      $('cPhone').href = tel; $('cPhone').textContent = info.contactPhone;
-      $('cWa').href = wa; $('heroWa').href = wa;
+      if ($('tsPhone')) $('tsPhone').href = tel;
+      setText('tsPhoneText', info.contactPhone);
     }
-    if (info.address) { $('cAddress').textContent = info.address; $('tsAddress').textContent = info.address; }
-    $('cGst').textContent = info.gst || '';
-    $('cGstRow').classList.toggle('hidden', !info.gst);
+    if (info.address) setText('tsAddress', info.address);
   }
 
   // ---------- menu ----------
@@ -423,7 +416,7 @@
       const info = await getInfo();
       showBusiness(info);
       if (!info.authorized) {
-        $('asOf').textContent = 'Access code required';
+        setText('asOf', 'Access code required');
         document.querySelectorAll('#navPdf, #heroPdf').forEach((el) => el.classList.add('hidden'));
         $('pinScreen').classList.remove('hidden');
         $('pin').focus();

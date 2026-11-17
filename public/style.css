@@ -228,6 +228,17 @@ mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1
 
 /* Dark mode: keep green buttons dark enough for white text */
 @media (prefers-color-scheme: dark) {
-  .req-btn, .btn.accent, .fab { background: var(--green); }
-  .req-btn:hover, .btn.accent:hover, .fab:hover { background: var(--green-2); }
+  .req-btn, .btn.accent, .btn.fab { background: var(--green); }
+  .req-btn:hover, .btn.accent:hover, .btn.fab:hover { background: var(--green-2); }
 }
+
+/* ===== Stock date + search on a big white block (replaces the hero) ===== */
+.search-top { background: var(--card); }
+.asof { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding-top: 26px; padding-bottom: 2px; }
+.asof-label { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-2); }
+.asof b { font-size: clamp(26px, 5vw, 34px); font-weight: 600; color: var(--brand); letter-spacing: -.01em; line-height: 1.1; }
+.asof-upd { font-size: 13.5px; color: var(--muted); }
+@media (prefers-color-scheme: dark) { .asof b { color: var(--text); } }
+.searchbar { background: var(--card); padding: 14px 0 18px; box-shadow: 0 6px 16px rgba(11,46,79,.06); }
+.search-box input { background: var(--bg); font-size: 19px; padding-top: 16px; padding-bottom: 16px; }
+.search-box input:focus { background: var(--card); }
