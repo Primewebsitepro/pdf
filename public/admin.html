@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Stock Admin</title>
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
+    .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .tabs button.active { background: var(--brand-soft); color: var(--brand); }
+    .tabs .count { background: var(--out); color: #fff; border-radius: 999px; font-size: 12px; padding: 1px 7px; margin-left: 4px; }
+    section { padding: 16px 0 60px; }
+    h2 { font-size: 20px; margin: 4px 0 14px; }
+    h3 { font-size: 16px; margin: 22px 0 10px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+    .stat .v { font-size: 24px; font-weight: 700; }
+    .stat .l { font-size: 13px; color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .tbl-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; background: var(--bg); position: sticky; top: 0; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .drop { display: block; border: 2px dashed var(--line); border-radius: 16px; padding: 34px 16px; text-align: center; background: var(--card); cursor: pointer; }
+    .drop.over { border-color: var(--brand); background: var(--brand-soft); }
+    .drop b { color: var(--brand); }
+    .muted { color: var(--muted); font-size: 14px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row > input, .row > select { flex: 1 1 180px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    .req { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+    .req.new { border-left: 4px solid var(--out); }
+    .req .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .req .prod { font-weight: 700; }
+    .req .who { font-size: 14px; color: var(--muted); }
+    .req .msgtxt { margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .req .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .req .btns .btn { padding: 7px 12px; font-size: 14px; }
+    .tag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); text-transform: uppercase; }
+    .tag.st-new { background: var(--out-bg); color: var(--out); }
+    .tag.st-done { background: var(--ok-bg); color: var(--ok); }
+    .warn-list { margin: 8px 0 0; padding-left: 18px; font-size: 14px; color: var(--low); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+    @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+    .linkbox { display: flex; gap: 6px; } .linkbox input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap row" style="justify-content:space-between">
+      <div><h1>Stock Admin</h1><div class="sub" id="topSub">Manage stock and retailer requests</div></div>
+      <div class="row">
+        <a class="btn secondary hidden" id="viewSite" href="/" target="_blank" style="padding:8px 12px;font-size:14px;text-decoration:none">View retailer page</a>
+        <button class="btn secondary hidden" id="logout" style="padding:8px 12px;font-size:14px">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="auth" class="wrap hidden">
+    <form class="center-card" id="authForm">
+      <h2 id="authTitle">Admin login</h2>
+      <p class="muted hidden" id="setupText">First time setup: choose an admin password (minimum 8 characters). Keep it safe.</p>
+      <div id="authMsg"></div>
+      <div class="field"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" required></div>
+      <div class="field hidden" id="pw2Wrap"><input id="pw2" type="password" placeholder="Confirm password" autocomplete="new-password"></div>
+      <button class="btn" style="width:100%" id="authBtn">Login</button>
+    </form>
+  </div>
+
+  <div id="panel" class="hidden">
+    <nav class="tabs wrap" id="nav">
+      <button data-tab="dash" class="active">Dashboard</button>
+      <button data-tab="upload">Upload stock</button>
+      <button data-tab="products">Products</button>
+      <button data-tab="requests">Requests <span class="count hidden" id="reqCount"></span></button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+
+    <main class="wrap">
+      <!-- DASHBOARD -->
+      <section id="tab-dash">
+        <h2>Dashboard</h2>
+        <div class="stats" id="stats"></div>
+        <div class="card" style="margin-top:12px" id="lastUpload"></div>
+        <h3>Upload history</h3>
+        <div class="tbl-wrap"><table><thead><tr><th>Uploaded</th><th>File</th><th>Stock as on</th><th class="num">Products</th><th class="num">New</th><th class="num">Changed</th><th class="num">Removed</th></tr></thead><tbody id="history"></tbody></table></div>
+      </section>
+
+      <!-- UPLOAD -->
+      <section id="tab-upload" class="hidden">
+        <h2>Upload today's stock</h2>
+        <p class="muted">Upload the stock Excel exported from your billing software (same format as <i>StockBtc</i> file), or any Excel / CSV with columns <b>ItemName, Stock, Mrp</b> (optional: <b>Group, Company, Item Code</b>).
+          The new file <b>replaces</b> the old stock completely. Upload as many times a day as you want.</p>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
+          <div style="font-size:34px">📄</div>
+          <div><b>Tap to choose file</b> or drag &amp; drop here</div>
+          <div class="muted">.xlsx or .csv · max 20 MB</div>
+        </label>
+        <div id="uploadResult" style="margin-top:14px"></div>
+      </section>
+
+      <!-- PRODUCTS -->
+      <section id="tab-products" class="hidden">
+        <div class="row" style="justify-content:space-between"><h2>Current stock</h2>
+          <div class="row">
+            <a class="btn secondary" id="pdfAdmin" href="/api/stock.pdf?admin=1" download style="padding:8px 12px;font-size:14px">Download PDF (full qty)</a>
+            <a class="btn secondary" href="/api/stock.pdf" download style="padding:8px 12px;font-size:14px" title="Exactly what retailers get">Retailer PDF</a>
+          </div></div>
+        <div class="row" style="margin-bottom:10px">
+          <input id="pq" type="search" placeholder="Search products…" autocomplete="off">
+          <select id="pf"><option value="">All products</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="nogroup">Missing group / salt</option></select>
+        </div>
+        <div class="muted" id="pmeta" style="margin-bottom:8px"></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Product</th><th>Group / Salt</th><th>Company</th><th class="num">MRP</th><th class="num">Stock</th></tr></thead><tbody id="ptable"></tbody></table></div>
+        <button class="btn secondary more hidden" id="pmore" style="margin-top:8px">Show more</button>
+      </section>
+
+      <!-- REQUESTS -->
+      <section id="tab-requests" class="hidden">
+        <div class="row" style="justify-content:space-between"><h2>Retailer requests</h2><a class="btn secondary" href="/api/admin/requests.csv" style="padding:8px 12px;font-size:14px;text-decoration:none">Download Excel (CSV)</a></div>
+        <div class="row" style="margin-bottom:10px">
+          <select id="rf"><option value="open">New + seen</option><option value="new">New only</option><option value="done">Done</option><option value="">All</option></select>
+          <input id="rq" type="search" placeholder="Search shop, product, mobile…">
+        </div>
+        <div id="rlist"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="tab-settings" class="hidden">
+        <h2>Settings</h2>
+        <form class="card" id="setForm">
+          <div id="setMsg"></div>
+          <div class="field"><label>Link for retailers (share this on WhatsApp)</label>
+            <div class="linkbox"><input id="shareLink" readonly><button type="button" class="btn secondary" id="copyLink">Copy</button></div></div>
+          <div class="grid2">
+            <div class="field"><label for="sName">Page title</label><input id="sName" maxlength="100"></div>
+            <div class="field"><label for="sPhone">Contact mobile (shown to retailers)</label><input id="sPhone" type="tel" maxlength="20" placeholder="e.g. 98xxxxxxxx"></div>
+            <div class="field"><label for="sAddress">Address (Contact Us section)</label><input id="sAddress" maxlength="300"></div>
+            <div class="field"><label for="sGst">GST number</label><input id="sGst" maxlength="20"></div>
+            <div class="field"><label for="sPin">Retailer access code (blank = no code needed)</label><input id="sPin" maxlength="40" autocomplete="off" placeholder="e.g. 4521"></div>
+            <div class="field"><label for="sDisplay">Show stock to retailers as</label>
+              <select id="sDisplay"><option value="qty">Exact quantity</option><option value="status">In stock / Low / Out only</option></select></div>
+            <div class="field"><label for="sLow">"Low stock" when quantity is at most</label><input id="sLow" type="number" min="0"></div>
+            <div class="field"><label for="sOut">Out-of-stock items</label>
+              <select id="sOut"><option value="1">Show them (marked Out of stock)</option><option value="0">Hide them</option></select></div>
+          </div>
+          <p class="muted">Changing the access code logs out all retailers; they must enter the new code.</p>
+          <div class="actions"><button class="btn">Save settings</button></div>
+        </form>
+
+        <form class="card" id="pwForm">
+          <h3 style="margin-top:0">Change admin password</h3>
+          <div id="pwMsg"></div>
+          <div class="grid2">
+            <div class="field"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password" required></div>
+            <div class="field"><label for="pwNew">New password (min 8)</label><input id="pwNew" type="password" autocomplete="new-password" required minlength="8"></div>
+          </div>
+          <div class="actions"><button class="btn">Change password</button></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/search.js"></script>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "stock-portal",
+  "version": "1.0.0",
+  "description": "Retailer stock search portal with admin upload (Excel/CSV), typo-tolerant search and product requests",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run-tests.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
