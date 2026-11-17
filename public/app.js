@@ -53,7 +53,7 @@
     if (settings.stockDisplay === 'status') {
       rows = rows.map((r) => { const v = r[iStock]; const c = r.slice(); c[iStock] = v <= 0 ? 0 : v <= low ? 1 : 2; c.push(v); return c; });
     } else rows = rows.map((r) => r.concat([r[iStock]]));
-    return { version: st.version, asOf: st.asOf, updatedAt: st.updatedAt, stockDisplay: settings.stockDisplay || 'qty', fields: f.concat(['raw']), items: rows };
+    return { version: st.version, asOf: st.asOf, updatedAt: st.updatedAt, firms: st.firms, stockDisplay: settings.stockDisplay || 'qty', fields: f.concat(['raw']), items: rows };
   }
   // Demo mode (set from the admin page on GitHub Pages): show the demo stock saved in this browser.
   const isDemo = () => { try { return !PHP && localStorage.getItem('demo_mode') === '1'; } catch { return false; } };
@@ -112,6 +112,8 @@
   }
   const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
+  const FIRMS = { MD: 'Meghavi Distributors', MM: 'Meghavi Medical' };
+  const firmOf = (it) => (it.firm === 'MM' ? 'MM' : 'MD');
   const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
@@ -199,7 +201,7 @@
       title: settings.siteName || 'Stock',
       subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)` + (settings.contactPhone ? `   |   Contact: ${settings.contactPhone}` : ''),
       filterText: filters, stockDisplay: stockDisplay, lowStockLimit: settings.lowStockLimit ?? 5,
-      items: list.map((it) => ({ ...it, stock: it.raw })), grouped,
+      items: list.map((it) => ({ ...it, stock: it.raw, name: firmOf(it) === 'MM' ? it.name + '  (Meghavi Medical)' : it.name })), grouped,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
     const a = document.createElement('a');
@@ -248,7 +250,7 @@
           ${stockBlock(it.stock)}
           ${fmtMrp(it.mrp) ? `<div class="mrp">MRP ${fmtMrp(it.mrp)}</div>` : ''}
         </div>
-        <button class="req-btn${it.stock > 0 ? '' : ' alt'}" type="button" data-req="${it.id}">${it.stock > 0 ? 'Order' : 'Request'}</button>
+        <button class="req-btn firm-${firmOf(it).toLowerCase()}" type="button" data-req="${it.id}" title="${FIRMS[firmOf(it)]}">${it.stock > 0 ? 'Order' : 'Request'}</button>
       </li>`).join('');
     list.innerHTML = html + (total > shown ? `<li><button class="btn secondary more" type="button" id="more">Show more (${(total - shown).toLocaleString('en-IN')} more)</button></li>` : '');
   }
@@ -257,6 +259,17 @@
     shown = PAGE;
     clearTimeout(timer);
     timer = setTimeout(render, 90);
+  }
+
+  // Colour key for the Order buttons: green = Meghavi Distributors, black = Meghavi Medical.
+  function renderFirmLegend(data) {
+    const el = $('firmLegend');
+    if (!el) return;
+    const present = new Set(items.map(firmOf));
+    const info = data.firms || {};
+    el.innerHTML = ['MD', 'MM'].filter((k) => present.has(k) || info[k]).map((k) =>
+      `<span class="fl"><i class="dot ${k.toLowerCase()}"></i>${FIRMS[k]}${info[k] && info[k].asOf ? ` <em>· ${esc(info[k].asOf)}</em>` : ''}</span>`).join('');
+    el.classList.toggle('hidden', !el.innerHTML);
   }
 
   // ---------- data ----------
@@ -270,6 +283,7 @@
     version = data.version;
     const companies = [...new Set(items.map((i) => i.company))].sort();
     setText('statDate', data.updatedAt ? (data.asOf || fmtTime(data.updatedAt)) : 'Not uploaded');
+    renderFirmLegend(data);
     setText('asOf', data.updatedAt ? 'Updated ' + fmtTime(data.updatedAt) : '');
     const sel = $('company'), keep = sel.value;
     sel.innerHTML = '<option value="">All companies</option>' + companies.map((c) => `<option>${esc(c)}</option>`).join('');
@@ -358,7 +372,7 @@
     if (b.id === 'more') { shown += PAGE; render(); return; }
     if (b.dataset.reqNew !== undefined) { openRequest(b.dataset.reqNew, 'new'); return; }
     const it = items.find((i) => String(i.id) === b.dataset.req);
-    if (it) openRequest(it.name + (it.mrp ? ` (MRP ${fmtMrp(it.mrp)})` : '') + ' - ' + it.company, 'order');
+    if (it) openRequest(it.name + (it.mrp ? ` (MRP ${fmtMrp(it.mrp)})` : '') + ' - ' + it.company + ' [' + FIRMS[firmOf(it)] + ']', 'order');
   });
 
   // ---------- search inputs ----------

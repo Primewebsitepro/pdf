@@ -8,7 +8,7 @@
   <title>Stock Admin</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
-  <link rel="stylesheet" href="public/style.css?v=202611171817">
+  <link rel="stylesheet" href="public/style.css?v=202611171821">
   <style>
     .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
     .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
@@ -49,6 +49,11 @@
     .req .btns .btn { padding: 7px 12px; font-size: 14px; }
     .tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); text-transform: uppercase; }
     .req-photo { display: block; width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); margin-top: 8px; }
+    .seg label { display: flex; align-items: center; justify-content: center; }
+    .dot { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -1px; margin-right: 4px; }
+    .dot.md { background: #16a05d; } .dot.mm { background: #111; border: 1px solid #555; }
+    .firm-tag { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; margin-left: 6px; white-space: nowrap; }
+    .firm-tag.md { background: var(--accent-soft); color: var(--accent-2); } .firm-tag.mm { background: #111; color: #fff; }
     .tag.st-new { background: var(--accent-soft); color: var(--accent-2); }
   </style>
 </head>
@@ -118,7 +123,16 @@
 
       <section id="tab-upload" class="hidden">
         <h2>Upload today's stock</h2>
-        <p class="muted">Choose the stock Excel exported from your billing software (same format as the <i>StockBtc</i> file), or any Excel / CSV with columns <b>ItemName, Stock, Mrp</b> (optional: <b>Group, Company, Item Code</b>). The new file <b>replaces</b> the old stock. The website updates about 1 minute after you publish.</p>
+        <p class="muted">Choose the stock Excel exported from your billing software (same format as the <i>StockBtc</i> file), or any Excel / CSV with columns <b>ItemName, Stock, Mrp</b> (optional: <b>Group, Company, Item Code</b>). The new file <b>replaces</b> the old stock of the selected firm. The website updates about 1 minute after you publish.</p>
+        <div class="card firm-pick">
+          <div class="field" style="margin:0"><label>1. This stock file is for</label>
+            <div class="seg">
+              <label><input type="radio" name="firm" value="MD" checked><span><i class="dot md"></i> Meghavi Distributors</span></label>
+              <label><input type="radio" name="firm" value="MM"><span><i class="dot mm"></i> Meghavi Medical</span></label>
+            </div>
+          </div>
+        </div>
+        <p class="muted" style="margin:6px 0 8px"><b>2.</b> Choose the file. Only the selected firm's stock is replaced; the other firm's stock stays as it is.</p>
         <label class="drop" id="drop">
           <input type="file" id="file" accept=".xlsx,.csv" hidden>
           <div style="font-size:34px">📄</div>
@@ -133,7 +147,7 @@
           <button class="btn secondary" id="pdfAdmin" style="padding:8px 12px;font-size:14px">Download PDF (full qty)</button></div>
         <div class="row" style="margin-bottom:10px">
           <input id="pq" type="search" placeholder="Search products…" autocomplete="off">
-          <select id="pf"><option value="">All products</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="nogroup">Missing group / salt</option></select>
+          <select id="pf"><option value="">All products</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="nogroup">Missing group / salt</option><option value="MD">Meghavi Distributors only</option><option value="MM">Meghavi Medical only</option></select>
         </div>
         <div class="muted" id="pmeta" style="margin-bottom:8px"></div>
         <div class="tbl-wrap"><table><thead><tr><th>Product</th><th>Group / Salt</th><th>Company</th><th class="num">MRP</th><th class="num">Stock</th></tr></thead><tbody id="ptable"></tbody></table></div>
@@ -192,11 +206,11 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="public/search.js?v=202611171817"></script>
-  <script src="lib/xlsx.js?v=202611171817"></script>
-  <script src="lib/importer.js?v=202611171817"></script>
-  <script src="lib/pdf.js?v=202611171817"></script>
-  <script src="static/admin-gh.js?v=202611171817"></script>
+  <script src="public/search.js?v=202611171821"></script>
+  <script src="lib/xlsx.js?v=202611171821"></script>
+  <script src="lib/importer.js?v=202611171821"></script>
+  <script src="lib/pdf.js?v=202611171821"></script>
+  <script src="static/admin-gh.js?v=202611171821"></script>
   <script>
     // Safety net: if an old cached copy of the page breaks loading, reload once with a fresh copy,
     // and if that still fails show a Refresh button instead of a blank page.
