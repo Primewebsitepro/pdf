@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b2e4f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Live medicine stock for retailers - search, download PDF and send orders.">
+  <title>Meghavi Distributors</title>
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
+  <link rel="stylesheet" href="public/style.css">
+</head>
+<body>
+  <!-- ===== Top banner + menu ===== -->
+  <div class="topstrip">
+    <div class="wrap topstrip-in">
+      <span class="ts-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span id="tsAddress">Valsad, Gujarat</span>
+      </span>
+      <a class="ts-item ts-phone" id="tsPhone" href="tel:+919974343448">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
+        <span id="tsPhoneText">+91 99743 43448</span>
+      </a>
+    </div>
+  </div>
+
+  <header class="nav" id="nav">
+    <div class="wrap nav-in">
+      <a class="logo" href="#top" aria-label="Home">
+        <span class="logo-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+        <span class="logo-text"><b id="siteName">Meghavi Distributors</b><small>Retailer stock portal</small></span>
+      </a>
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="menu" id="menu" aria-label="Main menu">
+        <a href="#top" data-close>Home</a>
+        <a href="#search" data-close data-focus-search>Search Stock</a>
+        <a href="#" id="navPdf" download data-close>Download PDF</a>
+        <a href="#" data-close data-open-request>Request Product</a>
+        <a href="#about" data-close>About Us</a>
+        <a href="#contact" data-close>Contact Us</a>
+        <a href="admin.html" class="menu-admin" data-close>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          Admin Login
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero" id="top">
+    <div class="wrap hero-in">
+      <span class="eyebrow">Pharma distributor · Valsad, Gujarat</span>
+      <h1>Live medicine stock,<br><span class="accent-text">one search away.</span></h1>
+      <p class="lead">Check availability and MRP, download the stock list as PDF and send your order. Updated every day.</p>
+      <div class="hero-stats">
+        <div class="hs"><b id="statProducts">–</b><span>Products</span></div>
+        <div class="hs"><b id="statCompanies">–</b><span>Companies</span></div>
+        <div class="hs"><b id="statDate">–</b><span id="asOf">Stock as on</span></div>
+      </div>
+      <div class="hero-cta">
+        <a class="btn accent" href="#search" data-focus-search>Search stock</a>
+        <a class="btn ghost" id="heroPdf" href="#" download>Download PDF</a>
+        <a class="btn ghost wa" id="heroWa" href="https://wa.me/919974343448" target="_blank" rel="noopener">WhatsApp us</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Access code (only if admin set one) ===== -->
+  <div id="pinScreen" class="wrap hidden">
+    <form class="center-card" id="pinForm">
+      <h2>Enter access code</h2>
+      <p class="muted">Ask Meghavi Distributors for the retailer access code.</p>
+      <div id="pinMsg"></div>
+      <div class="field"><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Access code" required></div>
+      <button class="btn" style="width:100%">Open stock</button>
+    </form>
+  </div>
+
+  <!-- ===== Search + results ===== -->
+  <main id="app" class="hidden">
+    <div class="searchbar" id="search">
+      <div class="wrap">
+        <div class="search-box" id="searchBox">
+          <span class="icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </span>
+          <input id="q" type="search" placeholder="Search medicine or salt…" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="search" aria-label="Search products">
+          <button class="clear" id="clear" type="button" aria-label="Clear search">×</button>
+        </div>
+        <div class="filters">
+          <select id="company" aria-label="Filter by company"><option value="">All companies</option></select>
+          <label class="chk"><input type="checkbox" id="inStock"> In stock only</label>
+          <a class="pdf-btn" id="pdf" href="#" download title="Download stock list as PDF">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span id="pdfLabel">PDF</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="meta" id="meta"></div>
+      <ul class="list" id="list"></ul>
+    </div>
+
+    <!-- shown when nothing is searched -->
+    <section class="wrap features" id="homeInfo">
+      <h2 class="section-title">Everything your shop needs</h2>
+      <div class="feature-grid">
+        <div class="feature">
+          <span class="f-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <h3>Smart search</h3>
+          <p>Type any part of the name: <b>prost</b> finds MISOPROST. Spelling mistakes are fine: <b>agumentin</b> finds AUGMENTIN.</p>
+        </div>
+        <div class="feature">
+          <span class="f-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>
+          <h3>Updated daily</h3>
+          <p>Stock is refreshed every day, often twice. This page updates by itself when new stock is uploaded.</p>
+        </div>
+        <div class="feature">
+          <span class="f-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6m-3-3 3 3 3-3"/></svg></span>
+          <h3>PDF download</h3>
+          <p>Download the full stock list, or only your search results, as a company-wise PDF.</p>
+        </div>
+        <div class="feature">
+          <span class="f-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg></span>
+          <h3>Order &amp; request</h3>
+          <p>Tap <b>Order</b> on any product, or request a new product that is not in the list.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== About + Contact (sections on this page) ===== -->
+  <section class="info-band" id="about">
+    <div class="wrap info-grid">
+      <div>
+        <span class="eyebrow dark">About Us</span>
+        <h2 class="section-title"><span class="js-site">Meghavi Distributors</span></h2>
+        <p>We are a pharmaceutical distributor based in Valsad, Gujarat, supplying medicines, surgical and general items from <b id="aboutCompanies">350+</b> companies to retail chemists in the region.</p>
+        <p>This portal lets our retail partners check live stock and MRP, download the stock list and send orders directly, any time of the day.</p>
+      </div>
+      <div class="contact-card" id="contact">
+        <span class="eyebrow dark">Contact Us</span>
+        <ul class="contact-list">
+          <li>
+            <span class="c-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span>
+            <div><small>Phone</small><a id="cPhone" href="tel:+919974343448">+91 99743 43448</a></div>
+          </li>
+          <li>
+            <span class="c-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.5 7.4L3 21l2.1-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg></span>
+            <div><small>WhatsApp</small><a id="cWa" href="https://wa.me/919974343448" target="_blank" rel="noopener">Chat on WhatsApp</a></div>
+          </li>
+          <li>
+            <span class="c-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+            <div><small>Address</small><span id="cAddress">G-2, T.M. Park, B/H Mukund, Parnera, N.H. No. 8 (48), Valsad, Gujarat</span></div>
+          </li>
+          <li id="cGstRow">
+            <span class="c-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg></span>
+            <div><small>GST No.</small><span id="cGst">24ABJFM8976D1ZW</span></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span>© <span id="year">2026</span> <span class="js-site">Meghavi Distributors</span></span>
+      <span class="footer-links"><a href="#about">About Us</a><a href="#contact">Contact Us</a><a href="admin.html">Admin Login</a></span>
+    </div>
+  </footer>
+
+  <button class="btn fab hidden" id="fab" type="button">+ Request product</button>
+
+  <div class="modal-bg" id="reqModal" role="dialog" aria-modal="true" aria-labelledby="reqTitle">
+    <form class="modal" id="reqForm">
+      <h2 id="reqTitle">Send a request</h2>
+      <div id="reqMsg"></div>
+      <div class="field">
+        <label>Request type</label>
+        <div class="seg">
+          <label><input type="radio" name="type" value="order" checked><span>Order</span></label>
+          <label><input type="radio" name="type" value="new"><span>New product</span></label>
+          <label><input type="radio" name="type" value="other"><span>Other</span></label>
+        </div>
+      </div>
+      <div class="field"><label for="rProduct">Product name</label><input id="rProduct" maxlength="200" placeholder="e.g. DOLO 650 TAB"></div>
+      <div class="field"><label for="rQty">Quantity</label><input id="rQty" maxlength="40" placeholder="e.g. 10 strips"></div>
+      <div class="field"><label for="rShop">Shop name *</label><input id="rShop" maxlength="120" required autocomplete="organization"></div>
+      <div class="field"><label for="rPhone">Mobile number *</label><input id="rPhone" type="tel" inputmode="tel" maxlength="20" required autocomplete="tel"></div>
+      <div class="field"><label for="rMessage">Message</label><textarea id="rMessage" maxlength="1000" placeholder="Anything else…"></textarea></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="reqCancel">Cancel</button>
+        <button class="btn accent" id="reqSend">Send on WhatsApp</button>
+      </div>
+    </form>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>window.STOCK_STATIC = true;</script>
+  <script src="public/search.js"></script>
+  <script src="lib/pdf.js"></script>
+  <script src="public/app.js"></script>
+</body>
+</html>

@@ -14,6 +14,48 @@
     if (!res.ok) throw Object.assign(new Error(data.error || 'Network error'), { status: res.status });
     return data;
   }
+  // ---------- data source ----------
+  // Node server: /api/...   |   GitHub Pages (window.STOCK_STATIC): stock/stock.json + stock/settings.json
+  const STATIC = !!window.STOCK_STATIC;
+  let settings = {}, staticStock = null;
+  async function getJSON(url) {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('Could not load ' + url);
+    return r.json();
+  }
+  async function getInfo() {
+    if (!STATIC) return (settings = await api('/api/info'));
+    settings = await getJSON('stock/settings.json');
+    staticStock = await getJSON('stock/stock.json');
+    return { ...settings, authorized: true, version: staticStock.version };
+  }
+  async function getProducts() {
+    if (!STATIC) return api('/api/products');
+    const st = staticStock || await getJSON('stock/stock.json');
+    staticStock = null;
+    const f = st.fields, iStock = f.indexOf('stock'), low = settings.lowStockLimit ?? 5;
+    let rows = st.items;
+    if (settings.showOutOfStock === false) rows = rows.filter((r) => r[iStock] > 0);
+    // In "status" mode the page shows only In stock / Low / Out; raw qty is kept for the PDF.
+    if (settings.stockDisplay === 'status') {
+      rows = rows.map((r) => { const v = r[iStock]; const c = r.slice(); c[iStock] = v <= 0 ? 0 : v <= low ? 1 : 2; c.push(v); return c; });
+    } else rows = rows.map((r) => r.concat([r[iStock]]));
+    return { version: st.version, asOf: st.asOf, updatedAt: st.updatedAt, stockDisplay: settings.stockDisplay || 'qty', fields: f.concat(['raw']), items: rows };
+  }
+  function waLink(text) {
+    const digits = String(settings.contactPhone || '').replace(/\D/g, '');
+    const num = digits.length === 10 ? '91' + digits : digits;
+    return 'https://wa.me/' + num + (text ? '?text=' + encodeURIComponent(text) : '');
+  }
+  async function sendRequest(body) {
+    if (!STATIC) return api('/api/requests', { method: 'POST', body: JSON.stringify(body) });
+    // No server on GitHub Pages: the request is sent to the business on WhatsApp.
+    const type = { order: 'ORDER', new: 'NEW PRODUCT REQUEST', other: 'REQUEST' }[body.type] || 'REQUEST';
+    const lines = [`*${type}*`, body.product && `Product: ${body.product}`, body.qty && `Qty: ${body.qty}`,
+      `Shop: ${body.shop}`, `Mobile: ${body.phone}`, body.message && `Message: ${body.message}`].filter(Boolean);
+    window.open(waLink(lines.join('\n')), '_blank', 'noopener');
+  }
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
@@ -80,8 +122,42 @@
     if (comp) params.set('company', comp);
     if (inStock) params.set('inStock', '1');
     const qs = params.toString();
-    $('pdf').href = '/api/stock.pdf' + (qs ? '?' + qs : '');
+    $('pdf').href = STATIC ? '#' : '/api/stock.pdf' + (qs ? '?' + qs : '');
     $('pdfLabel').textContent = qs ? 'PDF (this list)' : 'Full stock PDF';
+  }
+
+  // GitHub Pages: build the PDF in the browser (same layout as the server PDF).
+  let lastData = {};
+  function downloadPdf(onlyCurrent) {
+    const q = $('q').value.trim(), comp = $('company').value, inStock = $('inStock').checked;
+    let list, grouped = true;
+    const r = onlyCurrent ? currentResults() : null;
+    if (r && StockSearch.norm(q)) { list = r.list; grouped = false; }
+    else list = items.filter((it) => !onlyCurrent || ((!comp || it.company === comp) && (!inStock || it.stock > 0)));
+    if (grouped) list = [...list].sort((a, b) => a.company.localeCompare(b.company) || a.name.localeCompare(b.name));
+    const filters = onlyCurrent ? [StockSearch.norm(q) && `Search: "${q}"`, comp && `Company: ${comp}`, inStock && 'In stock only'].filter(Boolean).join('   ') : '';
+    const when = lastData.updatedAt ? new Date(lastData.updatedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const bytes = StockPdf.buildStockPdf({
+      title: settings.siteName || 'Stock',
+      subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)` + (settings.contactPhone ? `   |   Contact: ${settings.contactPhone}` : ''),
+      filterText: filters, stockDisplay: stockDisplay, lowStockLimit: settings.lowStockLimit ?? 5,
+      items: list.map((it) => ({ ...it, stock: it.raw })), grouped,
+    });
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `stock-${String(lastData.asOf || new Date().toISOString().slice(0, 10)).replace(/[^\d]+/g, '-')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  if (STATIC) {
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('#pdf, #navPdf, #heroPdf');
+      if (!a) return;
+      e.preventDefault();
+      if (!items.length) return toast('Stock is still loading…');
+      toast('Preparing PDF…');
+      setTimeout(() => downloadPdf(a.id === 'pdf'), 30);
+    });
   }
 
   function render() {
@@ -125,7 +201,8 @@
 
   // ---------- data ----------
   async function loadProducts(silent) {
-    const data = await api('/api/products');
+    const data = await getProducts();
+    lastData = data;
     const f = data.fields;
     items = data.items.map((row) => { const o = {}; f.forEach((k, i) => { o[k] = row[i] ?? ''; }); return o; });
     index = StockSearch.buildIndex(items);
@@ -148,6 +225,11 @@
   async function checkForUpdate() {
     if (document.hidden) return;
     try {
+      if (STATIC) {
+        const st = await getJSON('stock/stock.json');
+        if (st.version !== version) { settings = await getJSON('stock/settings.json'); staticStock = st; await loadProducts(true); }
+        return;
+      }
       const info = await api('/api/info');
       if (!info.authorized) return location.reload();
       if (info.version !== version) await loadProducts(true);
@@ -174,12 +256,13 @@
       shop: $('rShop').value, phone: $('rPhone').value, message: $('rMessage').value,
     };
     if (!/^[+\d][\d\s-]{8,}$/.test(body.phone.trim())) { $('reqMsg').innerHTML = '<div class="msg err">Please enter a valid mobile number.</div>'; return; }
+    if (!body.product.trim() && !body.message.trim()) { $('reqMsg').innerHTML = '<div class="msg err">Please write the product name or a message.</div>'; return; }
     $('reqSend').disabled = true;
     try {
-      await api('/api/requests', { method: 'POST', body: JSON.stringify(body) });
+      await sendRequest(body);
       store.set('shop', body.shop); store.set('phone', body.phone);
       closeRequest();
-      toast('Request sent. Thank you!');
+      toast(STATIC ? 'Opening WhatsApp… press Send there.' : 'Request sent. Thank you!');
     } catch (err) {
       $('reqMsg').innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
     } finally { $('reqSend').disabled = false; }
@@ -252,7 +335,7 @@
 
   async function start() {
     try {
-      const info = await api('/api/info');
+      const info = await getInfo();
       showBusiness(info);
       if (!info.authorized) {
         $('asOf').textContent = 'Access code required';

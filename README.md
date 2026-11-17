@@ -3,6 +3,35 @@
 A website where your retail shops can search your stock on their phones, and send an
 order or a new-product request. The admin uploads the stock Excel every day.
 
+## Live website (GitHub Pages)
+
+- Retailer website: https://primewebsitepro.github.io/pdf/
+- Admin: https://primewebsitepro.github.io/pdf/admin.html
+
+The GitHub Pages version needs no server. Everything runs in the browser:
+- Stock is read from `stock/stock.json`, and settings from `stock/settings.json`.
+- Search and PDF downloads work fully on the phone.
+- **Order / Request product** opens WhatsApp with the request already written, sent to the contact number in Settings.
+- **Admin login** uses a GitHub fine-grained token with *Contents: Read and write* for this repository. The admin page explains how to create one.
+- Uploading an Excel file shows a preview first. **Publish** saves `stock/stock.json` to this repository, and the website updates in about 1 minute.
+- **Undo last upload** restores the previous version from the Git history.
+- Commits made from the admin page use the GitHub no-reply address, never a personal email.
+
+Things the GitHub Pages version cannot do, because there is no server:
+- A secret retailer access code.
+- Storing requests on the website. Requests arrive on WhatsApp instead.
+
+The stock data is public to anyone who has the link. For those two features, run the Node.js server version described below.
+
+Command-line alternative for updating stock: `node tools/build-stock-json.js "StockBtc.xlsx"`, then commit `stock/stock.json`.
+
+## Node.js server version (optional)
+
+The same website also runs as a Node.js app (`server.js`) on a VPS or Render. That version adds:
+- server-side requests with an admin inbox
+- a retailer access code
+- password login
+
 ## Features (as per requirements)
 
 | Requirement | How it works |

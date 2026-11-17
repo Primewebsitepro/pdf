@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Stock Admin</title>
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
+  <link rel="stylesheet" href="public/style.css">
+  <style>
+    .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
+    .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .tabs button.active { background: var(--brand-soft); color: var(--brand); }
+    section { padding: 16px 0 60px; }
+    h2 { font-size: 20px; margin: 4px 0 14px; color: var(--brand); }
+    h3 { font-size: 16px; margin: 22px 0 10px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+    .stat .v { font-size: 24px; font-weight: 600; }
+    .stat .l { font-size: 13px; color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .tbl-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; background: var(--bg); }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .drop { display: block; border: 2px dashed var(--line); border-radius: 16px; padding: 34px 16px; text-align: center; background: var(--card); cursor: pointer; }
+    .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+    .drop b { color: var(--accent-2); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row > input, .row > select { flex: 1 1 180px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+    .warn-list { margin: 8px 0 0; padding-left: 18px; font-size: 14px; color: var(--low); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+    @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+    .steps { margin: 6px 0 0; padding-left: 20px; font-size: 14.5px; color: var(--muted); }
+    .steps li { margin-bottom: 4px; }
+    .steps b { color: var(--text); }
+    .top .btn { padding: 8px 12px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap row" style="justify-content:space-between">
+      <div><h1>Stock Admin</h1><div class="sub" id="topSub">Upload stock and manage the website</div></div>
+      <div class="row">
+        <a class="btn secondary" href="./" target="_blank">View website</a>
+        <button class="btn secondary hidden" id="logout">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- connect with GitHub token -->
+  <div id="auth" class="wrap hidden">
+    <form class="center-card" id="authForm" style="max-width:520px">
+      <h2>Admin login</h2>
+      <p class="muted">This website is hosted on GitHub. To upload stock, log in with a <b>GitHub access token</b> for the repository <b id="repoName"></b>. The token is saved only in this browser.</p>
+      <div id="authMsg"></div>
+      <div class="field"><input id="token" type="password" placeholder="github_pat_…" autocomplete="off" required></div>
+      <button class="btn accent" style="width:100%">Login</button>
+      <details style="margin-top:14px">
+        <summary class="muted" style="cursor:pointer">How to get a token (one time, 2 minutes)</summary>
+        <ol class="steps">
+          <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a></li>
+          <li>Token name: <b>stock-admin</b>, Expiration: <b>1 year</b></li>
+          <li>Repository access: <b>Only select repositories</b> → choose <b id="repoName2"></b></li>
+          <li>Permissions → Repository permissions → <b>Contents: Read and write</b></li>
+          <li>Click <b>Generate token</b>, copy it and paste above</li>
+        </ol>
+      </details>
+    </form>
+  </div>
+
+  <div id="panel" class="hidden">
+    <nav class="tabs wrap" id="nav">
+      <button data-tab="dash" class="active">Dashboard</button>
+      <button data-tab="upload">Upload stock</button>
+      <button data-tab="products">Products</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+
+    <main class="wrap">
+      <section id="tab-dash">
+        <h2>Dashboard</h2>
+        <div id="liveMsg"></div>
+        <div class="stats" id="stats"></div>
+        <div class="card" style="margin-top:12px" id="lastUpload"></div>
+        <div class="card muted">Retailer orders and product requests arrive on your <b>WhatsApp</b> (<span id="waNum"></span>).</div>
+        <h3>Upload history</h3>
+        <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Details</th></tr></thead><tbody id="history"></tbody></table></div>
+      </section>
+
+      <section id="tab-upload" class="hidden">
+        <h2>Upload today's stock</h2>
+        <p class="muted">Choose the stock Excel exported from your billing software (same format as the <i>StockBtc</i> file), or any Excel / CSV with columns <b>ItemName, Stock, Mrp</b> (optional: <b>Group, Company, Item Code</b>). The new file <b>replaces</b> the old stock. The website updates about 1 minute after you publish.</p>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept=".xlsx,.csv" hidden>
+          <div style="font-size:34px">📄</div>
+          <div><b>Tap to choose file</b> or drag &amp; drop here</div>
+          <div class="muted">.xlsx or .csv</div>
+        </label>
+        <div id="uploadResult" style="margin-top:14px"></div>
+      </section>
+
+      <section id="tab-products" class="hidden">
+        <div class="row" style="justify-content:space-between"><h2>Current stock</h2>
+          <button class="btn secondary" id="pdfAdmin" style="padding:8px 12px;font-size:14px">Download PDF (full qty)</button></div>
+        <div class="row" style="margin-bottom:10px">
+          <input id="pq" type="search" placeholder="Search products…" autocomplete="off">
+          <select id="pf"><option value="">All products</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="nogroup">Missing group / salt</option></select>
+        </div>
+        <div class="muted" id="pmeta" style="margin-bottom:8px"></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Product</th><th>Group / Salt</th><th>Company</th><th class="num">MRP</th><th class="num">Stock</th></tr></thead><tbody id="ptable"></tbody></table></div>
+        <button class="btn secondary more hidden" id="pmore" style="margin-top:8px">Show more</button>
+      </section>
+
+      <section id="tab-settings" class="hidden">
+        <h2>Settings</h2>
+        <form class="card" id="setForm">
+          <div id="setMsg"></div>
+          <div class="field"><label>Website link for retailers (share on WhatsApp)</label>
+            <div class="row"><input id="shareLink" readonly><button type="button" class="btn secondary" id="copyLink">Copy</button></div></div>
+          <div class="grid2">
+            <div class="field"><label for="sName">Business name</label><input id="sName" maxlength="100"></div>
+            <div class="field"><label for="sPhone">Contact / WhatsApp number</label><input id="sPhone" type="tel" maxlength="20"></div>
+            <div class="field"><label for="sAddress">Address</label><input id="sAddress" maxlength="300"></div>
+            <div class="field"><label for="sGst">GST number</label><input id="sGst" maxlength="20"></div>
+            <div class="field"><label for="sDisplay">Show stock to retailers as</label>
+              <select id="sDisplay"><option value="qty">Exact quantity</option><option value="status">In stock / Low / Out only</option></select></div>
+            <div class="field"><label for="sLow">"Low stock" when quantity is at most</label><input id="sLow" type="number" min="0"></div>
+            <div class="field"><label for="sOut">Out-of-stock items</label>
+              <select id="sOut"><option value="1">Show them (marked Out of stock)</option><option value="0">Hide them</option></select></div>
+          </div>
+          <div class="actions"><button class="btn accent">Save settings</button></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="public/search.js"></script>
+  <script src="lib/xlsx.js"></script>
+  <script src="lib/importer.js"></script>
+  <script src="lib/pdf.js"></script>
+  <script src="static/admin-gh.js"></script>
+</body>
+</html>

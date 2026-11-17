@@ -1,0 +1,9 @@
+{
+  "siteName": "Meghavi Distributors",
+  "contactPhone": "+91 99743 43448",
+  "address": "G-2, T.M. Park, B/H Mukund, Parnera, N.H. No. 8 (48), Valsad, Gujarat",
+  "gst": "24ABJFM8976D1ZW",
+  "stockDisplay": "qty",
+  "lowStockLimit": 5,
+  "showOutOfStock": true
+}

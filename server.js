@@ -195,20 +195,20 @@ function stockPdf(params, forAdmin) {
   }
   const when = stock.updatedAt ? new Date(stock.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
   const filters = [q && `Search: "${q}"`, company && `Company: ${company}`, inStock && 'In stock only'].filter(Boolean).join('   ');
-  const buf = buildStockPdf({
+  const buf = Buffer.from(buildStockPdf({
     title: st.siteName,
     subtitle: `Stock as on ${stock.asOf || '-'}   |   Updated ${when}   |   ${items.length} item(s)` + (st.contactPhone ? `   |   Contact: ${st.contactPhone}` : ''),
     filterText: filters,
     stockDisplay: display, lowStockLimit: st.lowStockLimit, items, grouped,
-  });
+  }, (u8) => zlib.deflateSync(u8)));
   if (pdfCache.size > 30) pdfCache.clear();
   pdfCache.set(key, buf);
   return buf;
 }
 
 // ---------- admin actions ----------
-function doImport(buf, filename) {
-  const rows = readSpreadsheet(buf, filename);
+async function doImport(buf, filename) {
+  const rows = await readSpreadsheet(buf, filename, (u8) => zlib.inflateRawSync(u8));
   const result = importRows(rows);
   const old = store.getStock();
   const changes = diff(old.items, result.items);
@@ -352,7 +352,7 @@ async function route(req, res) {
       const buf = await readBody(req, MAX_UPLOAD);
       if (!buf.length) return json(req, res, 400, { error: 'Empty file' });
       const name = clip(decodeURIComponent(req.headers['x-filename'] || 'upload.xlsx'), 200);
-      try { return json(req, res, 200, doImport(buf, name)); } catch (e) { return json(req, res, 400, { error: e.message }); }
+      try { return json(req, res, 200, await doImport(buf, name)); } catch (e) { return json(req, res, 400, { error: e.message }); }
     }
 
     if (p === '/api/admin/undo-upload' && m === 'POST') {
