@@ -244,15 +244,14 @@
     const FIRMS = StockImporter.FIRMS;
     $('stats').innerHTML = [
       stat(num(items.length), 'Products'),
-      stat(num(items.filter((p) => p.firm === 'MD').length), FIRMS.MD), stat(num(items.filter((p) => p.firm === 'MM').length), FIRMS.MM),
       stat(num(new Set(items.map((p) => p.company)).size), 'Companies'),
       stat(num(items.reduce((s, p) => s + Math.max(0, p.stock), 0)), 'Total stock (units)'),
       stat(num(items.filter((p) => p.stock <= 0).length), 'Out of stock'), stat(num(items.filter((p) => p.stock > 0 && p.stock <= low).length), 'Low stock'),
     ].join('');
     const fi = StockImporter.firmsOf(f);
-    const firmLine = (k) => `<div style="margin-bottom:6px"><i class="dot ${k.toLowerCase()}"></i> <b>${FIRMS[k]}</b> — ${fi[k] ? `stock as on ${esc(fi[k].asOf || '-')} <span class="muted">(uploaded ${when(fi[k].updatedAt)} · ${esc(fi[k].fileName)})</span>` : '<span class="muted">not uploaded yet</span>'}</div>`;
+    const firmLine = (k) => `<div style="margin-bottom:6px"><i class="dot f-${k.toLowerCase()}"></i> <b>${FIRMS[k]}</b> (${num(items.filter((p) => p.firm === k).length)} products) — ${fi[k] ? `stock as on ${esc(fi[k].asOf || '-')} <span class="muted">(uploaded ${when(fi[k].updatedAt)} · ${esc(fi[k].fileName)})</span>` : '<span class="muted">not uploaded yet</span>'}</div>`;
     $('lastUpload').innerHTML = f
-      ? `<div class="row" style="justify-content:space-between;align-items:flex-start"><div>${firmLine('MD')}${firmLine('MM')}</div>
+      ? `<div class="row" style="justify-content:space-between;align-items:flex-start"><div>${Object.keys(FIRMS).map(firmLine).join('')}</div>
          <div class="row"><button class="btn accent" data-go="upload">Upload new stock</button><button class="btn secondary" id="undo">Undo last upload</button></div></div>`
       : '<div class="row" style="justify-content:space-between"><b>No stock uploaded yet.</b><button class="btn accent" data-go="upload">Upload stock file</button></div>';
     try {
@@ -285,6 +284,17 @@
     }
     box.innerHTML = '<div class="msg err">GitHub Pages is taking longer than usual. The new stock will appear soon.</div>';
   }
+
+  // ---------- firm choices (built from StockImporter.FIRMS) ----------
+  (function buildFirmUi() {
+    const F = StockImporter.FIRMS;
+    const colours = { MD: 'green', MM: 'red', MC: 'yellow', MP: 'blue', MH: 'orange' };
+    $('firmRadios').innerHTML = Object.keys(F).map((k, i) =>
+      `<label><input type="radio" name="firm" value="${k}"${i === 0 ? ' checked' : ''}><span><i class="dot f-${k.toLowerCase()}"></i> ${esc(F[k])} <small class="muted">(${colours[k] || ''} button)</small></span></label>`).join('');
+    $('adminFirmKey').innerHTML = Object.keys(F).map((k) =>
+      `<span class="fk"><i class="chip f-${k.toLowerCase()}">Order</i> ${esc(F[k])}</span>`).join('');
+    $('pf').insertAdjacentHTML('beforeend', Object.keys(F).map((k) => `<option value="${k}">${esc(F[k])} only</option>`).join(''));
+  })();
 
   // ---------- upload ----------
   let pending = null;
@@ -344,7 +354,7 @@
     const list = StockSearch.norm(q) ? StockSearch.search(pindex, q, { filter }).map((r) => r.item) : stock.items.filter(filter);
     $('pmeta').textContent = `${num(list.length)} of ${num(stock.items.length)} products`;
     $('ptable').innerHTML = list.slice(0, pShown).map((p) => `<tr>
-      <td><b>${esc(p.name)}</b>${p.scheme ? ` <span class="scheme">${esc(p.scheme)}</span>` : ''}${p.code ? ` <span class="code">${esc(p.code)}</span>` : ''}<span class="firm-tag ${p.firm.toLowerCase()}">${p.firm === 'MM' ? 'Medical' : 'Distributors'}</span></td>
+      <td><b>${esc(p.name)}</b>${p.scheme ? ` <span class="scheme">${esc(p.scheme)}</span>` : ''}${p.code ? ` <span class="code">${esc(p.code)}</span>` : ''}<span class="firm-tag f-${p.firm.toLowerCase()}">${esc(StockImporter.FIRMS[p.firm].replace(/^Meghavi /, ''))}</span></td>
       <td class="muted">${esc(p.group)}</td><td class="muted">${esc(p.company)}</td><td class="num">${mrp(p.mrp)}</td>
       <td class="num"><span class="badge ${p.stock <= 0 ? 'out' : p.stock <= low ? 'low' : 'ok'}">${num(p.stock)}</span></td></tr>`).join('')
       || '<tr><td colspan="5" class="muted">No products</td></tr>';
@@ -356,7 +366,7 @@
   $('pdfAdmin').addEventListener('click', () => {
     const f = stock.file || {};
     const items = [...stock.items].sort((a, b) => a.company.localeCompare(b.company) || a.name.localeCompare(b.name))
-      .map((p) => (p.firm === 'MM' ? { ...p, name: p.name + '  (Meghavi Medical)' } : p));
+      .map((p) => (p.firm !== 'MD' ? { ...p, name: p.name + '  (' + StockImporter.FIRMS[p.firm] + ')' } : p));
     const bytes = StockPdf.buildStockPdf({
       title: settings.file.siteName || 'Stock', subtitle: `Stock as on ${f.asOf || '-'}   |   Updated ${when(f.updatedAt)}   |   ${items.length} item(s)`,
       filterText: '', stockDisplay: 'qty', items, grouped: true,

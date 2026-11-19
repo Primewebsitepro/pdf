@@ -112,8 +112,10 @@
   }
   const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
-  const FIRMS = { MD: 'Meghavi Distributors', MM: 'Meghavi Medical' };
-  const firmOf = (it) => (it.firm === 'MM' ? 'MM' : 'MD');
+  // Firms and their Order button colours (classes .f-md, .f-mm, ... in style.css)
+  const FIRMS = { MD: 'Meghavi Distributors', MM: 'Meghavi Medical', MC: 'Meghavi Chemist', MP: 'Meghavi Pharmacy', MH: 'Meghavi Healthcare' };
+  const firmOf = (it) => (FIRMS[it.firm] ? it.firm : 'MD');
+  let firmInfo = {};
   const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
@@ -201,7 +203,7 @@
       title: settings.siteName || 'Stock',
       subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)` + (settings.contactPhone ? `   |   Contact: ${settings.contactPhone}` : ''),
       filterText: filters, stockDisplay: stockDisplay, lowStockLimit: settings.lowStockLimit ?? 5,
-      items: list.map((it) => ({ ...it, stock: it.raw, name: firmOf(it) === 'MM' ? it.name + '  (Meghavi Medical)' : it.name })), grouped,
+      items: list.map((it) => ({ ...it, stock: it.raw, name: firmOf(it) !== 'MD' ? it.name + '  (' + FIRMS[firmOf(it)] + ')' : it.name })), grouped,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
     const a = document.createElement('a');
@@ -232,7 +234,7 @@
       return;
     }
     const total = r.list.length;
-    meta.textContent = total ? `${total.toLocaleString('en-IN')} result${total === 1 ? '' : 's'}` : '';
+    meta.textContent = '';
     if (!total) {
       const q = r.q.trim();
       list.innerHTML = `<li class="empty">No product found${q ? ' for <b>' + esc(q) + '</b>' : ''}.<br><br>
@@ -245,12 +247,13 @@
           <div class="name">${highlight(it.name, r.q)}${it.scheme ? `<span class="scheme">Scheme ${esc(it.scheme)}</span>` : ''}${it.code ? `<span class="code">${highlight(it.code, r.q)}</span>` : ''}</div>
           ${it.group ? `<div class="group">${highlight(it.group, r.q)}</div>` : ''}
           <div class="company">${esc(it.company)}</div>
+          ${updatedLine(it)}
         </div>
         <div class="mid">
           ${stockBlock(it.stock)}
           ${fmtMrp(it.mrp) ? `<div class="mrp">MRP ${fmtMrp(it.mrp)}</div>` : ''}
         </div>
-        <button class="req-btn firm-${firmOf(it).toLowerCase()}" type="button" data-req="${it.id}" title="${FIRMS[firmOf(it)]}">${it.stock > 0 ? 'Order' : 'Request'}</button>
+        <button class="req-btn f-${firmOf(it).toLowerCase()}" type="button" data-req="${it.id}" title="${FIRMS[firmOf(it)]}">${it.stock > 0 ? 'Order' : 'Request'}</button>
       </li>`).join('');
     list.innerHTML = html + (total > shown ? `<li><button class="btn secondary more" type="button" id="more">Show more (${(total - shown).toLocaleString('en-IN')} more)</button></li>` : '');
   }
@@ -265,11 +268,20 @@
   function renderFirmLegend(data) {
     const el = $('firmLegend');
     if (!el) return;
-    const present = new Set(items.map(firmOf));
-    const info = data.firms || {};
-    el.innerHTML = ['MD', 'MM'].filter((k) => present.has(k) || info[k]).map((k) =>
-      `<span class="fl"><i class="dot ${k.toLowerCase()}"></i>${FIRMS[k]}${info[k] && info[k].asOf ? ` <em>· ${esc(info[k].asOf)}</em>` : ''}</span>`).join('');
+    el.innerHTML = Object.keys(FIRMS).map((k) =>
+      `<span class="fk"><i class="chip f-${k.toLowerCase()}">Order</i> ${FIRMS[k]}</span>`).join('');
     el.classList.toggle('hidden', !el.innerHTML);
+  }
+
+  // "Updated 19 Nov 2026, 9:30 AM": when this firm's stock file was uploaded.
+  function updatedLine(it) {
+    const f = firmInfo[firmOf(it)];
+    const at = (f && f.updatedAt) || lastData.updatedAt;
+    if (!at) return '';
+    const d = new Date(at);
+    const txt = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+      d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `<div class="upd">Updated ${esc(txt)}${f && f.asOf ? ` · stock as on ${esc(f.asOf)}` : ''}</div>`;
   }
 
   // ---------- data ----------
@@ -283,6 +295,7 @@
     version = data.version;
     const companies = [...new Set(items.map((i) => i.company))].sort();
     setText('statDate', data.updatedAt ? (data.asOf || fmtTime(data.updatedAt)) : 'Not uploaded');
+    firmInfo = data.firms || {};
     renderFirmLegend(data);
     setText('asOf', data.updatedAt ? 'Updated ' + fmtTime(data.updatedAt) : '');
     const sel = $('company'), keep = sel.value;
