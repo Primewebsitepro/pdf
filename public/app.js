@@ -201,7 +201,7 @@
     const when = lastData.updatedAt ? new Date(lastData.updatedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
     const bytes = StockPdf.buildStockPdf({
       title: settings.siteName || 'Stock',
-      subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)` + (settings.contactPhone ? `   |   Contact: ${settings.contactPhone}` : ''),
+      subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)`,
       filterText: filters, stockDisplay: stockDisplay, lowStockLimit: settings.lowStockLimit ?? 5,
       items: list.map((it) => ({ ...it, stock: it.raw, name: firmOf(it) !== 'MD' ? it.name + '  (' + FIRMS[firmOf(it)] + ')' : it.name })), grouped,
     });

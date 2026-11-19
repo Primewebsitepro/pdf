@@ -197,7 +197,7 @@ function stockPdf(params, forAdmin) {
   const filters = [q && `Search: "${q}"`, company && `Company: ${company}`, inStock && 'In stock only'].filter(Boolean).join('   ');
   const buf = Buffer.from(buildStockPdf({
     title: st.siteName,
-    subtitle: `Stock as on ${stock.asOf || '-'}   |   Updated ${when}   |   ${items.length} item(s)` + (st.contactPhone ? `   |   Contact: ${st.contactPhone}` : ''),
+    subtitle: `Stock as on ${stock.asOf || '-'}   |   Updated ${when}   |   ${items.length} item(s)`,
     filterText: filters,
     stockDisplay: display, lowStockLimit: st.lowStockLimit, items, grouped,
   }, (u8) => zlib.deflateSync(u8)));
