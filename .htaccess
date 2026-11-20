@@ -24,3 +24,7 @@ DirectoryIndex index.html
     Deny from all
   </IfModule>
 </FilesMatch>
+
+# BEGIN MilesWeb-ErrorPages
+ErrorDocument 503 /error_pages/503.html
+# END MilesWeb-ErrorPages
