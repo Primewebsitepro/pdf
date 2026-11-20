@@ -253,7 +253,7 @@
           ${stockBlock(it.stock)}
           ${fmtMrp(it.mrp) ? `<div class="mrp">MRP ${fmtMrp(it.mrp)}</div>` : ''}
         </div>
-        <button class="req-btn f-${firmOf(it).toLowerCase()}" type="button" data-req="${it.id}" title="${FIRMS[firmOf(it)]}">${it.stock > 0 ? 'Order' : 'Request'}</button>
+        <button class="req-btn f-${firmOf(it).toLowerCase()}" type="button" data-req="${it.id}" title="${FIRMS[firmOf(it)]}"><span class="rb-main">${it.stock > 0 ? 'Order' : 'Request'}</span><span class="rb-firm">${FIRMS[firmOf(it)]}</span></button>
       </li>`).join('');
     list.innerHTML = html + (total > shown ? `<li><button class="btn secondary more" type="button" id="more">Show more (${(total - shown).toLocaleString('en-IN')} more)</button></li>` : '');
   }
