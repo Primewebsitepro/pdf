@@ -290,7 +290,7 @@
     const F = StockImporter.FIRMS;
     const colours = { MD: 'green', MM: 'red', MC: 'yellow', MP: 'blue', MH: 'orange' };
     $('firmRadios').innerHTML = Object.keys(F).map((k, i) =>
-      `<label><input type="radio" name="firm" value="${k}"${i === 0 ? ' checked' : ''}><span><i class="dot f-${k.toLowerCase()}"></i> ${esc(F[k])} <small class="muted">(${colours[k] || ''} button)</small></span></label>`).join('');
+      `<label><input type="radio" name="firm" value="${k}"><span><i class="dot f-${k.toLowerCase()}"></i> ${esc(F[k])} <small class="muted">(${colours[k] || ''} button)</small></span></label>`).join('');
     $('adminFirmKey').innerHTML = Object.keys(F).map((k) =>
       `<span class="fk"><i class="chip f-${k.toLowerCase()}">Order</i> ${esc(F[k])}</span>`).join('');
     $('pf').insertAdjacentHTML('beforeend', Object.keys(F).map((k) => `<option value="${k}">${esc(F[k])} only</option>`).join(''));
@@ -311,10 +311,18 @@
       const rows = await StockXlsx.readSpreadsheet(new Uint8Array(await file.arrayBuffer()), file.name, StockXlsx.browserInflateRaw);
       const r = StockImporter.importRows(rows);
       if (!r.asOf) r.asOf = StockImporter.asOfFromFileName(file.name);
-      const firm = (document.querySelector('input[name="firm"]:checked') || {}).value || 'MD';
+      const chosen = (document.querySelector('input[name="firm"]:checked') || {}).value || '';
+      const detected = StockImporter.firmFromTitle(r.title);
+      const firm = chosen || detected;
+      if (!firm) { out.innerHTML = '<div class="msg err">Please choose the firm first (step 1), then choose the file again.</div>'; return; }
       const changes = StockImporter.diff(stock.items.filter((p) => p.firm === firm), r.items);
-      pending = { result: r, fileName: file.name, changes, firm };
-      out.innerHTML = `<div class="card"><div class="msg ok">File read successfully for <b>${esc(StockImporter.FIRMS[firm])}</b>${r.asOf ? ' — stock as on ' + esc(r.asOf) : ''}. Check the numbers and press <b>Publish</b>.</div>
+      pending = { result: r, fileName: file.name, changes, firm, detected, lastFile: file };
+      const F = StockImporter.FIRMS;
+      const mismatch = detected && detected !== firm;
+      out.innerHTML = `<div class="card">
+        ${mismatch ? `<div class="msg err" style="font-size:16px"><b>⚠ Wrong firm?</b> This file says <b>"${esc(r.title)}"</b>, which looks like <b>${esc(F[detected])}</b>, but you selected <b>${esc(F[firm])}</b>.
+          <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="btn accent" id="useDetected">Upload as ${esc(F[detected])}</button></div></div>` : ''}
+        <div class="msg ok">Uploading for: <b style="font-size:17px">${esc(F[firm])}</b>${r.title ? ` · file: ${esc(r.title)}` : ''}${r.asOf ? ' · stock as on ' + esc(r.asOf) : ''}. Check the numbers and press <b>Publish</b>.</div>
         <div class="stats">
           <div class="stat"><div class="v">${num(r.stats.products)}</div><div class="l">Products (from ${num(r.stats.rowsRead)} rows)</div></div>
           <div class="stat"><div class="v">${num(r.stats.companies)}</div><div class="l">Companies</div></div>
@@ -324,13 +332,18 @@
           <div class="stat"><div class="v">${num(changes.removed)}</div><div class="l">Removed</div></div>
         </div>
         ${r.warnings.length ? `<ul class="warn-list">${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
-        <div class="actions" style="margin-top:12px"><button class="btn secondary" id="cancelUp">Cancel</button><button class="btn accent" id="publish">Publish to website</button></div></div>`;
+        <div class="actions" style="margin-top:12px"><button class="btn secondary" id="cancelUp">Cancel</button><button class="btn ${mismatch ? 'danger' : 'accent'}" id="publish">${mismatch ? 'Publish anyway as ' + esc(F[firm]) : 'Publish to ' + esc(F[firm])}</button></div></div>`;
+      if (!chosen) { const rb = document.querySelector(`input[name="firm"][value="${firm}"]`); if (rb) rb.checked = true; }
     } catch (err) {
       out.innerHTML = `<div class="msg err">Could not read file: ${esc(err.message)}</div>`;
     } finally { $('file').value = ''; }
   }
   $('uploadResult').addEventListener('click', async (e) => {
     if (e.target.id === 'cancelUp') { pending = null; $('uploadResult').innerHTML = ''; return; }
+    if (e.target.id === 'useDetected' && pending && pending.lastFile) {
+      const rb = document.querySelector(`input[name="firm"][value="${pending.detected}"]`); if (rb) rb.checked = true;
+      readFile(pending.lastFile); return;
+    }
     if (e.target.id !== 'publish' || !pending) return;
     e.target.disabled = true; e.target.textContent = 'Publishing…';
     try {

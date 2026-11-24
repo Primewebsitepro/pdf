@@ -8,7 +8,7 @@
   <title>Stock Admin</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
-  <link rel="stylesheet" href="public/style.css?v=202611241450">
+  <link rel="stylesheet" href="public/style.css?v=202611241700">
   <style>
     .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
     .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
@@ -127,7 +127,7 @@
 
       <section id="tab-upload" class="hidden">
         <h2>Upload today's stock</h2>
-        <p class="muted">Choose the stock Excel exported from your billing software (same format as the <i>StockBtc</i> file), or any Excel / CSV with columns <b>ItemName, Stock, Mrp</b> (optional: <b>Group, Company, Item Code</b>). The new file <b>replaces</b> the old stock of the selected firm. The website updates about 1 minute after you publish.</p>
+        <p class="muted">Choose the stock file from your billing software (<b>StokItem … .xls</b>). Used columns: <b>ItemName, LastMRP, Stock, Generic, Location</b>. The file <b>replaces</b> the old stock of the selected firm only.</p>
         <div class="card firm-pick">
           <div class="field" style="margin:0"><label>1. This stock file is for</label>
             <div class="seg">
@@ -209,11 +209,11 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="public/search.js?v=202611241450"></script>
-  <script src="lib/xlsx.js?v=202611241450"></script>
-  <script src="lib/importer.js?v=202611241450"></script>
-  <script src="lib/pdf.js?v=202611241450"></script>
-  <script src="static/admin-gh.js?v=202611241450"></script>
+  <script src="public/search.js?v=202611241700"></script>
+  <script src="lib/xlsx.js?v=202611241700"></script>
+  <script src="lib/importer.js?v=202611241700"></script>
+  <script src="lib/pdf.js?v=202611241700"></script>
+  <script src="static/admin-gh.js?v=202611241700"></script>
   <script>
     // Safety net: if an old cached copy of the page breaks loading, reload once with a fresh copy,
     // and if that still fails show a Refresh button instead of a blank page.
