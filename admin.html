@@ -8,7 +8,7 @@
   <title>Stock Admin</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap">
-  <link rel="stylesheet" href="public/style.css?v=202611201012">
+  <link rel="stylesheet" href="public/style.css?v=202611241450">
   <style>
     .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; scrollbar-width: none; }
     .tabs button { border: 0; background: none; padding: 9px 14px; border-radius: 10px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
@@ -137,10 +137,10 @@
         </div>
         <p class="muted" style="margin:6px 0 8px"><b>2.</b> Choose the file. Only the selected firm's stock is replaced; the other firm's stock stays as it is.</p>
         <label class="drop" id="drop">
-          <input type="file" id="file" accept=".xlsx,.csv" hidden>
+          <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
           <div style="font-size:34px">📄</div>
           <div><b>Tap to choose file</b> or drag &amp; drop here</div>
-          <div class="muted">.xlsx or .csv</div>
+          <div class="muted">.xlsx, .xls or .csv</div>
         </label>
         <div id="uploadResult" style="margin-top:14px"></div>
       </section>
@@ -209,11 +209,11 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="public/search.js?v=202611201012"></script>
-  <script src="lib/xlsx.js?v=202611201012"></script>
-  <script src="lib/importer.js?v=202611201012"></script>
-  <script src="lib/pdf.js?v=202611201012"></script>
-  <script src="static/admin-gh.js?v=202611201012"></script>
+  <script src="public/search.js?v=202611241450"></script>
+  <script src="lib/xlsx.js?v=202611241450"></script>
+  <script src="lib/importer.js?v=202611241450"></script>
+  <script src="lib/pdf.js?v=202611241450"></script>
+  <script src="static/admin-gh.js?v=202611241450"></script>
   <script>
     // Safety net: if an old cached copy of the page breaks loading, reload once with a fresh copy,
     // and if that still fails show a Refresh button instead of a blank page.

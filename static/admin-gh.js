@@ -310,6 +310,7 @@
     try {
       const rows = await StockXlsx.readSpreadsheet(new Uint8Array(await file.arrayBuffer()), file.name, StockXlsx.browserInflateRaw);
       const r = StockImporter.importRows(rows);
+      if (!r.asOf) r.asOf = StockImporter.asOfFromFileName(file.name);
       const firm = (document.querySelector('input[name="firm"]:checked') || {}).value || 'MD';
       const changes = StockImporter.diff(stock.items.filter((p) => p.firm === firm), r.items);
       pending = { result: r, fileName: file.name, changes, firm };
@@ -355,7 +356,7 @@
     $('pmeta').textContent = `${num(list.length)} of ${num(stock.items.length)} products`;
     $('ptable').innerHTML = list.slice(0, pShown).map((p) => `<tr>
       <td><b>${esc(p.name)}</b>${p.scheme ? ` <span class="scheme">${esc(p.scheme)}</span>` : ''}${p.code ? ` <span class="code">${esc(p.code)}</span>` : ''}<span class="firm-tag f-${p.firm.toLowerCase()}">${esc(StockImporter.FIRMS[p.firm].replace(/^Meghavi /, ''))}</span></td>
-      <td class="muted">${esc(p.group)}</td><td class="muted">${esc(p.company)}</td><td class="num">${mrp(p.mrp)}</td>
+      <td class="muted">${esc(p.group)}${p.location ? `<br><small>Location: ${esc(p.location)}</small>` : ''}</td><td class="muted">${esc(p.company)}</td><td class="num">${mrp(p.mrp)}</td>
       <td class="num"><span class="badge ${p.stock <= 0 ? 'out' : p.stock <= low ? 'low' : 'ok'}">${num(p.stock)}</span></td></tr>`).join('')
       || '<tr><td colspan="5" class="muted">No products</td></tr>';
     $('pmore').classList.toggle('hidden', list.length <= pShown);

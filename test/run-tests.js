@@ -76,7 +76,7 @@ async function call(method, p, { body, cookie, headers = {}, raw } = {}) {
   const items = p.data.items.map((row) => Object.fromEntries(p.data.fields.map((k, i) => [k, row[i]])));
   const idx = S.buildIndex(items);
   assert.strictEqual(S.search(idx, 'carboprost')[0].item.name, 'CERBOPROST INJ, 1ML'); ok('typo search: carboprost -> CERBOPROST');
-  assert.strictEqual(S.search(idx, 'd650')[0].item.code, 'D650'); ok('item code search works');
+  assert.ok(items.every((x) => !x.code)); ok('item Code column is not imported (client asked to remove it)');
 
   // --- undo restores previous upload
   r = await call('POST', '/api/admin/undo-upload', { cookie: adminCookie });

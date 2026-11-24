@@ -203,7 +203,7 @@
       title: settings.siteName || 'Stock',
       subtitle: `Stock as on ${lastData.asOf || '-'}   |   Updated ${when}   |   ${list.length} item(s)`,
       filterText: filters, stockDisplay: stockDisplay, lowStockLimit: settings.lowStockLimit ?? 5,
-      items: list.map((it) => ({ ...it, stock: it.raw, name: firmOf(it) !== 'MD' ? it.name + '  (' + FIRMS[firmOf(it)] + ')' : it.name })), grouped,
+      items: list.map((it) => ({ ...it, stock: it.raw, code: '', group: [it.group, it.location && 'Location: ' + it.location].filter(Boolean).join('  |  '), name: firmOf(it) !== 'MD' ? it.name + '  (' + FIRMS[firmOf(it)] + ')' : it.name })), grouped,
     });
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
     const a = document.createElement('a');
@@ -244,9 +244,10 @@
     const html = r.list.slice(0, shown).map((it) => `
       <li class="item">
         <div class="info">
-          <div class="name">${highlight(it.name, r.q)}${it.scheme ? `<span class="scheme">Scheme ${esc(it.scheme)}</span>` : ''}${it.code ? `<span class="code">${highlight(it.code, r.q)}</span>` : ''}</div>
+          <div class="name">${highlight(it.name, r.q)}${it.scheme ? `<span class="scheme">Scheme ${esc(it.scheme)}</span>` : ''}</div>
           ${it.group ? `<div class="group">${highlight(it.group, r.q)}</div>` : ''}
-          <div class="company">${esc(it.company)}</div>
+          ${it.company && it.company !== 'OTHERS' ? `<div class="company">${esc(it.company)}</div>` : ''}
+          ${it.location ? `<div class="loc">Location: <b>${esc(it.location)}</b></div>` : ''}
           ${updatedLine(it)}
         </div>
         <div class="mid">
